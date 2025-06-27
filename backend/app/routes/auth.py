@@ -15,7 +15,8 @@ from app.core.security import (
     create_access_token, 
     create_refresh_token, 
     verify_token, 
-    create_password_reset_token
+    create_password_reset_token,
+    get_password_hash
 )
 from app.utils.auth import get_current_user, check_admin_permission
 
@@ -314,4 +315,28 @@ async def debug_token(current_user: User = Depends(get_current_user)):
         "email": current_user.email,
         "role": current_user.vaiTro,
         "org_id": current_user.maToChuc
-    } 
+    }
+
+# Endpoint tạm thời để reset mật khẩu cho mục đích debug
+@router.post("/debug-force-password-reset", include_in_schema=settings.DEBUG)
+async def debug_force_password_reset(
+    email: str = Form(...),
+    new_password: str = Form(...),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    !!! DEBUGGING ONLY !!!
+    Buộc đặt lại mật khẩu cho một người dùng mà không cần mật khẩu cũ.
+    Endpoint này phải được xóa trước khi đưa lên production.
+    """
+    user = await UserService.get_by_email(db, email)
+    if not user:
+        raise HTTPException(status_code=404, detail=f"Không tìm thấy người dùng với email: {email}")
+    
+    hashed_password = get_password_hash(new_password)
+    success = await UserService.update_password(db, user.maNguoiDung, hashed_password)
+
+    if not success:
+        raise HTTPException(status_code=500, detail="Không thể cập nhật mật khẩu.")
+
+    return {"message": f"Mật khẩu cho {email} đã được đặt lại thành công."} 

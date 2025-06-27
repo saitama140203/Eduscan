@@ -234,5 +234,15 @@
       "cols": 5
     }
   },
-  "preProcessors": []
+  "preProcessors": [
+    {
+      "name": "AdvancedFeatureAlignment",
+      "options": {
+        "reference": "12-4-6.png",
+        "featureType": "ORB",
+        "maxFeatures": 5000,
+        "goodMatchPercent": 0.2
+      }
+    }
+  ]
 }

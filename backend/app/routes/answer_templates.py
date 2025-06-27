@@ -210,7 +210,7 @@ async def create_template_with_files(
             # Lưu OMR config vào thư mục templates/
             # Lưu OMR config vào thư mục OMRChecker/templates/
             print("💾 Saving OMR configuration...")
-            omr_templates_dir = f"${settings.OMR_DATA_DIR}/templates/template_{template_id}"
+            omr_templates_dir = f"{settings.OMR_DATA_DIR}/templates/template_{template_id}"
             os.makedirs(omr_templates_dir, exist_ok=True)
             
             # Lưu file template.json
@@ -335,10 +335,8 @@ async def create_template_with_pdf(
 
         # Xác định maToChuc trước
         if str(current_user.vaiTro).upper() == "ADMIN":
-            # Admin tạo template hệ thống (maToChuc = None) - tất cả đều xem được
             ma_to_chuc = None
         else:
-            # Non-admin user tạo cho tổ chức của mình
             ma_to_chuc = current_user.maToChuc
 
         # Tạo template cơ bản
@@ -454,7 +452,6 @@ async def update_template(
     # Validate dữ liệu nếu có thay đổi cấu trúc
     if any([template_update.soCauHoi, template_update.soLuaChonMoiCau, template_update.tenMauPhieu]):
         update_data = template_update.dict(exclude_unset=True)
-        # Merge với dữ liệu hiện tại để validate
         current_data = {
             "tenMauPhieu": template.tenMauPhieu,
             "soCauHoi": template.soCauHoi,

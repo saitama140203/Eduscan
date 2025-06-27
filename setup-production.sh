@@ -152,7 +152,7 @@ Type=simple
 User=root
 WorkingDirectory=/root/projects/Eduscan/frontend
 Environment="NODE_ENV=production"
-Environment="NEXT_PUBLIC_API_BASE_URL=https://eduscan.id.vn/api/v1"
+Environment="NEXT_PUBLIC_API_URL=https://eduscan.id.vn/api/v1"
 Environment="NEXT_PUBLIC_OMR_API_BASE_URL=https://eduscan.id.vn/api/omr"
 ExecStart=/usr/bin/npm run start
 Restart=always

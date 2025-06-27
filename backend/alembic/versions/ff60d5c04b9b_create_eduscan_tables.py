@@ -757,160 +757,108 @@ def upgrade() -> None:  # noqa: C901 – long but clear
     # 14.  SAMPLE DATA
     # ==============================================================
 
-    # --- Chèn tổ chức
-    orgs_sql = """INSERT INTO "TOCHUC" ("tenToChuc", "loaiToChuc", "diaChi") VALUES
-        ('Trường THPT Nguyễn Huệ', 'TRUONG_THPT', '123 Lê Lợi, Q1, TP.HCM'),
-        ('Trường THCS Lê Quý Đôn', 'TRUONG_THCS', '45 CMT8, Q3, TP.HCM'),
-        ('Trường Đại học Sư Phạm Kỹ Thuật – ĐH Đà Nẵng', 'TRUONG_DAI_HOC', '01 Võ Văn Ngân, Thủ Đức, TP.HCM');"""
-    exec_sql(orgs_sql)
+    schools = [
+    # (Tên trường, Loại, Địa chỉ, Tên miền)
+    ("Trường ĐH Bách khoa Hà Nội", "TRUONG_DAI_HOC", "Số 1 Đại Cồ Việt, Hai Bà Trưng, Hà Nội", "hust.edu.vn"),
+    ("Trường ĐH Bách khoa TP.HCM", "TRUONG_DAI_HOC", "268 Lý Thường Kiệt, Q.10, TP.HCM", "hcmut.edu.vn"),
+    ("Trường ĐH Sư phạm Kỹ thuật Đà Nẵng", "TRUONG_DAI_HOC", "48 Cao Thắng, Q.Hải Châu, Đà Nẵng", "ute.udn.vn"),
+    ("Trường ĐH Khoa học Tự nhiên TP.HCM", "TRUONG_DAI_HOC", "227 Nguyễn Văn Cừ, Q.5, TP.HCM", "hcmus.edu.vn"),
+    ("Trường ĐH Sư phạm Hà Nội", "TRUONG_DAI_HOC", "136 Xuân Thuỷ, Cầu Giấy, Hà Nội", "hnue.edu.vn"),
+    ("Trường ĐH Cần Thơ", "TRUONG_DAI_HOC", "Khu II, 3/2, Ninh Kiều, Cần Thơ", "ctu.edu.vn"),
+    ("Trường ĐH Y Hà Nội", "TRUONG_DAI_HOC", "1 Tôn Thất Tùng, Đống Đa, Hà Nội", "hmu.edu.vn"),
+    ("Trường ĐH Dược Hà Nội", "TRUONG_DAI_HOC", "13-15 Lê Thánh Tông, Hoàn Kiếm, Hà Nội", "hup.edu.vn"),
+    ("Trường ĐH Xây dựng Hà Nội", "TRUONG_DAI_HOC", "55 Giải Phóng, Hai Bà Trưng, Hà Nội", "nuce.edu.vn"),
+    ("Trường ĐH Giao thông Vận tải", "TRUONG_DAI_HOC", "3 Cầu Giấy, Đống Đa, Hà Nội", "utc.edu.vn"),
+    ("Trường ĐH Kinh tế Quốc dân", "TRUONG_DAI_HOC", "207 Giải Phóng, Hai Bà Trưng, Hà Nội", "neu.edu.vn"),
+    ("Trường THPT Nguyễn Huệ", "TRUONG_THPT", "123 Lê Lợi, Q.1, TP.HCM", "nguyenhue.edu.vn"),
+    ("Trường THPT Lê Quý Đôn", "TRUONG_THPT", "110 Nguyễn Thị Minh Khai, Q.3, TP.HCM", "lequydon.edu.vn"),
+    ("Trường THPT Trần Đại Nghĩa", "TRUONG_THPT", "20 Lý Tự Trọng, Q.1, TP.HCM", "trandainnghia.edu.vn"),
+    ("Trường THCS Lê Quý Đôn", "TRUONG_THCS", "45 CMT8, Q.3, TP.HCM", "lequydon-thcs.edu.vn"),
+    ("Trường THCS Nguyễn Du", "TRUONG_THCS", "41 Nam Kỳ Khởi Nghĩa, Q.1, TP.HCM", "nguyendu.edu.vn"),
+    ("Trường Tiểu học Lê Văn Tám", "TIEU_HOC", "96 Điện Biên Phủ, Q.1, TP.HCM", "levantam.edu.vn"),
+    ("Trường Tiểu học Nguyễn Bỉnh Khiêm", "TIEU_HOC", "33 Trần Nhật Duật, Q.1, TP.HCM", "nguyenbinhkhiem.edu.vn"),
+    ("Trường Tiểu học Trần Quốc Toản", "TIEU_HOC", "20 Nguyễn Trãi, Q.1, TP.HCM", "tranquoctoan.edu.vn"),
+    ("Trường THPT Chu Văn An", "TRUONG_THPT", "10 Thụy Khuê, Tây Hồ, Hà Nội", "chuvanan.edu.vn"),
+    ("Trường ĐH Ngoại thương", "TRUONG_DAI_HOC", "91 Chùa Láng, Đống Đa, Hà Nội", "ftu.edu.vn"),
+    ]
 
-    # --- super admin
-    exec_sql(
-        """INSERT INTO \"NGUOIDUNG\" (\"maToChuc\",\"email\",\"matKhauMaHoa\",\"hoTen\",\"vaiTro\",\"soDienThoai\") VALUES
-        (NULL,'superadmin@eduscan.ai','HASHED','Super Admin','ADMIN','0900000000');"""
-    )
+    teachers_by_school = [
+        # Chỉ ví dụ 3 tên GV mỗi trường (tên thật, không số)
+        ["Trần Quốc Toản", "Nguyễn Thị Hương", "Lê Minh Tuấn"],
+        ["Phạm Thị Lan", "Hoàng Văn Dũng", "Đặng Thị Linh"],
+        ["Nguyễn Văn Phú", "Trần Thị Thu", "Lê Quang Hòa"],
+        ["Đoàn Ngọc Minh", "Lý Thị Mai", "Trịnh Văn Nam"],
+        ["Võ Thị Hạnh", "Lê Quốc Bảo", "Nguyễn Hữu Tùng"],
+        ["Nguyễn Thị Hạnh", "Phạm Đức Kiên", "Bùi Minh Hạnh"],
+        ["Trần Thị Mỹ Linh", "Nguyễn Tuấn Kiệt", "Đỗ Hữu Phước"],
+        ["Ngô Minh Châu", "Trương Quốc Dũng", "Vũ Hồng Sơn"],
+        ["Hoàng Thị Hà", "Đinh Văn Phong", "Phan Thị Thủy"],
+        ["Lê Anh Dũng", "Nguyễn Bích Thủy", "Tạ Minh Hoàng"],
+        ["Phạm Thị Thu Hà", "Nguyễn Minh Trí", "Trần Hải Yến"],
+        ["Bùi Thị Hoa", "Đào Quang Huy", "Nguyễn Thành Long"],
+        ["Đoàn Thanh Tùng", "Nguyễn Hoài Nam", "Trịnh Thị Hương"],
+        ["Nguyễn Thu Trang", "Vũ Minh Châu", "Hoàng Văn Phúc"],
+        ["Lê Minh Châu", "Nguyễn Thị Ngọc", "Trần Hữu Toàn"],
+        ["Vũ Quốc Việt", "Phạm Văn Quý", "Đặng Minh Phúc"],
+        ["Nguyễn Thị Loan", "Bùi Đức Anh", "Phan Hồng Sơn"],
+        ["Trịnh Minh Hiếu", "Nguyễn Đăng Khoa", "Võ Thị Mai"],
+        ["Lê Văn Hùng", "Nguyễn Thị Cẩm", "Phạm Quốc Bảo"],
+        ["Đinh Thị Mai", "Trần Văn Phát", "Nguyễn Thị Kim Chi"],
+        ["Đặng Văn Tùng", "Lý Hoàng Nam", "Nguyễn Thị Ánh"],
+    ]
 
-    # --- managers & teachers
-    for org_id in range(1, 4):
-        exec_sql(
-            f"INSERT INTO \"NGUOIDUNG\" (\"maToChuc\",\"email\",\"matKhauMaHoa\",\"hoTen\",\"vaiTro\") VALUES"
-            f"({org_id},'manager{org_id}@example.csom','HASH','Manager {org_id}','MANAGER');"
-        )
-        for t in range(1, 4):
-            exec_sql(
-                f"INSERT INTO \"NGUOIDUNG\" (\"maToChuc\",\"email\",\"matKhauMaHoa\",\"hoTen\",\"vaiTro\") VALUES"
-                f"({org_id},'teacher{org_id}_{t}@example.com','HASH','GV {org_id}_{t}','TEACHER');"
-            )
+    import unicodedata
 
-    # --- lớp & học sinh
-    gv_offset = 1 + 3
-    current_teacher = gv_offset
-    lop_seq = 0
+    def emailify(name):
+        def get_ascii_char(c):
+            # Đặc biệt đổi đ/Đ thành d/D
+            if c.lower() == 'đ':
+                return 'd'
+            # Bỏ dấu các ký tự Unicode khác
+            return unicodedata.normalize('NFD', c)[0].lower()
+        # Lấy ký tự đầu mỗi từ, bỏ dấu
+        return ''.join(get_ascii_char(word[0]) for word in name.strip().split() if word)
 
-    for org_id in range(1, 4):
-        for idx in range(1, 3):
-            lop_seq += 1
-            ten_lop = f"{10+idx}{chr(64+idx)}"
-            cap_hoc = "THPT" if org_id == 1 else "THCS"
-            nam_hoc = f"{today_year}-{today_year+1}"
-            gvcn = current_teacher
-            current_teacher += 1
-            exec_sql(
-                f"INSERT INTO \"LOPHOC\" (\"maToChuc\",\"tenLop\",\"capHoc\",\"namHoc\",\"maGiaoVienChuNhiem\") VALUES"
-                f"({org_id},'{ten_lop}','{cap_hoc}','{nam_hoc}',{gvcn});"
-            )
-            for stt in range(1, 31):
-                male = random.choice([True, False])
-                ho = random.choice(HO_LIST)
-                ten = random.choice(TEN_NAM if male else TEN_NU)
-                ns = _dt.date(today_year-16, random.randint(1,12), random.randint(1,28))
-                gt = "Nam" if male else "Nữ"
-                code = f"{lop_seq:02d}{stt:03d}"
-                exec_sql(
-                    f"INSERT INTO \"HOCSINH\" (\"maLopHoc\",\"maHocSinhTruong\",\"hoTen\",\"ngaySinh\",\"gioiTinh\") VALUES"
-                    f"({lop_seq},'{code}','{ho} {ten}','{ns}','{gt}');"
-                )
-            # Thêm 1 học sinh nổi bật
-            ho = "Đoàn" if cap_hoc == "THPT" else "Phạm"
-            ten = "Nguyên Thiện Mỹ" if cap_hoc == "THPT" else "Ngọc Anh"
-            ns = _dt.date(today_year-17, 4, 14)
-            gt = "Nữ"
-            code = f"{lop_seq:02d}999"
-            exec_sql(
-                f"INSERT INTO \"HOCSINH\" (\"maLopHoc\",\"maHocSinhTruong\",\"hoTen\",\"ngaySinh\",\"gioiTinh\") VALUES"
-                f"({lop_seq},'{code}','{ho} {ten}','{ns}','{gt}');"
-            )
 
-    # --- mẫu phiếu mặc định
-    exec_sql(
-        """INSERT INTO \"MAUPHIEUTRALOI\" (\"maToChuc\",\"maNguoiTao\",\"tenMauPhieu\",\"soCauHoi\") SELECT \"maToChuc\",MIN(\"maNguoiDung\"),'Mẫu 40 câu - 4 lựa chọn',40 FROM \"NGUOIDUNG\" WHERE \"vaiTro\"='MANAGER' GROUP BY \"maToChuc\";"""
-    )
-
-    # --- bài kiểm tra + đáp án + gán lớp
-    teacher_ids = [r[0] for r in exec_sql("SELECT DISTINCT \"maGiaoVienChuNhiem\" FROM \"LOPHOC\"").fetchall()]
-
-    for tid in teacher_ids:
-        org = exec_sql(f"SELECT \"maToChuc\" FROM \"NGUOIDUNG\" WHERE \"maNguoiDung\"={tid}").scalar()
-        lop = exec_sql(f"SELECT \"maLopHoc\" FROM \"LOPHOC\" WHERE \"maGiaoVienChuNhiem\"={tid} LIMIT 1").scalar()
-        mau = exec_sql(f"SELECT \"maMauPhieu\" FROM \"MAUPHIEUTRALOI\" WHERE \"maToChuc\"={org} LIMIT 1").scalar()
-        if lop is None or mau is None:
-            continue
-        for lan in range(1,3):
-            mon = random.choice(MON_HOC)
-            tong = 40
-            ngay_thi = _dt.date(today_year, random.randint(3,6), random.randint(1,28))
-            exec_sql(
-                f"INSERT INTO \"BAIKIEMTRA\" (\"maToChuc\",\"maNguoiTao\",\"maMauPhieu\",\"tieuDe\",\"monHoc\",\"ngayThi\",\"tongSoCau\") VALUES"
-                f"({org},{tid},{mau},'KT {mon} lần {lan} - GV {tid}','{mon}','{ngay_thi}',{tong});"
-            )
-            bkt = exec_sql("SELECT lastval();").scalar()
-            exec_sql(
-                f"INSERT INTO \"BAIKIEMTRA_LOPHOC\" (\"maBaiKiemTra\",\"maLopHoc\") VALUES ({bkt},{lop});"
-            )
-            answer = {str(i): random.choice("ABCD") for i in range(1,tong+1)}
-            exec_sql(
-                f"INSERT INTO \"DAPAN\" (\"maBaiKiemTra\",\"dapAnJson\") VALUES ({bkt},'{json.dumps(answer,ensure_ascii=False)}');"
-            )
-
-    # --- PHIEUTRALOI (sinh 5 phiếu trả lời mẫu cho mỗi lớp/bài kiểm tra)
-    bkt_rows = exec_sql('SELECT "maBaiKiemTra", "maLopHoc" FROM "BAIKIEMTRA_LOPHOC"').fetchall()
-    for bkt_id, lop_id in bkt_rows:
-        hoc_sinh_ids = [r[0] for r in exec_sql(f'SELECT "maHocSinh" FROM "HOCSINH" WHERE "maLopHoc"={lop_id} LIMIT 5').fetchall()]
-        for hs_id in hoc_sinh_ids:
-            # Random đáp án, 80% đúng, 20% random
-            dap_an_row = exec_sql(f'SELECT "dapAnJson" FROM "DAPAN" WHERE "maBaiKiemTra"={bkt_id}').fetchone()
-            if not dap_an_row:
+    for i, (school_name, org_type, addr, domain) in enumerate(schools, 1):
+        exec_sql(f"""
+            INSERT INTO "TOCHUC" ("tenToChuc", "loaiToChuc", "diaChi")
+            VALUES ('{school_name}', '{org_type}', '{addr}');
+        """)
+        org_id = exec_sql('SELECT MAX("maToChuc") FROM "TOCHUC"').scalar()
+        
+        # --- Manager (lấy tên GV đầu tiên làm manager, emailify, hậu tố .mg)
+        manager_fullname = teachers_by_school[i-1][0]
+        manager_local = emailify(manager_fullname)
+        manager_email = f"{manager_local}.mg@{domain}"
+        manager_phone = f"0900{str(i).zfill(4)}"
+        exec_sql(f"""
+            INSERT INTO "NGUOIDUNG"
+            ("maToChuc","email","matKhauMaHoa","hoTen","vaiTro","soDienThoai")
+            VALUES
+            ({org_id},'{manager_email}','$2b$12$/olbAOLO/ECDHvoP3ETrd.vPTUI2lJF6Dw9.lMzndIDgorHPIouCa','{manager_fullname}','MANAGER','{manager_phone}');
+        """)
+        
+        # --- Teachers (bỏ manager ra nếu trùng)
+        for t_idx, t_name in enumerate(teachers_by_school[i-1]):
+            if t_idx == 0:  # Bỏ trùng với manager
                 continue
-            dapan = dap_an_row[0]
-            answers = {}
-            for q, da in dapan.items():
-                if random.random() < 0.8:
-                    answers[q] = da
-                else:
-                    answers[q] = random.choice([x for x in "ABCD" if x != da])
-            exec_sql(
-                f"""INSERT INTO "PHIEUTRALOI"
-                ("maBaiKiemTra","maHocSinh","urlHinhAnh","urlHinhAnhXuLy","cauTraLoiJson","daXuLyHoanTat","doTinCay")
+            t_local = emailify(t_name)
+            t_email = f"{t_local}.gv@{domain}"
+            t_phone = f"09{org_id:02d}0{random.randint(100,999)}"
+            exec_sql(f"""
+                INSERT INTO "NGUOIDUNG"
+                ("maToChuc","email","matKhauMaHoa","hoTen","vaiTro","soDienThoai")
                 VALUES
-                ({bkt_id},{hs_id},
-                '/media/{uuid.uuid4()}.jpg','/media/{uuid.uuid4()}_xl.jpg',
-                '{json.dumps(answers, ensure_ascii=False)}',TRUE,{round(random.uniform(0.95,1),2)})"""
-            )
+                ({org_id},'{t_email}','$2b$12$/olbAOLO/ECDHvoP3ETrd.vPTUI2lJF6Dw9.lMzndIDgorHPIouCa','{t_name}','TEACHER','{t_phone}');
+            """)
 
-    # --- KETQUA (auto mark)
-    for row in exec_sql('SELECT "maPhieuTraLoi", "maBaiKiemTra", "maHocSinh", "cauTraLoiJson" FROM "PHIEUTRALOI"').fetchall():
-        maPhieu, maBKT, maHS, cauTraLoiJson = row
-        dap_an_row = exec_sql(f'SELECT "dapAnJson" FROM "DAPAN" WHERE "maBaiKiemTra"={maBKT}').fetchone()
-        if not dap_an_row: continue
-        dapan = dap_an_row[0]
-        answers = cauTraLoiJson
-        dung = sum(1 for k in dapan if answers.get(k) == dapan[k])
-        sai = sum(1 for k in dapan if k in answers and answers[k] != dapan[k])
-        chuatra = sum(1 for k in dapan if k not in answers)
-        diem = round((dung / len(dapan)) * 10, 2)
-        exec_sql(
-            f"""INSERT INTO "KETQUA"
-            ("maPhieuTraLoi","maBaiKiemTra","maHocSinh","diem","soCauDung","soCauSai","soCauChuaTraLoi","chiTietJson")
-            VALUES
-            ({maPhieu},{maBKT},{maHS},{diem},{dung},{sai},{chuatra},'{json.dumps({"detail":"fake"},ensure_ascii=False)}')"""
-        )
-
-    # --- THONGKEKIEMTRA
-    for row in exec_sql('SELECT "maBaiKiemTra", "maLopHoc" FROM "BAIKIEMTRA_LOPHOC"').fetchall():
-        maBKT, maLop = row
-        scores = [float(r[0]) for r in exec_sql(
-            f'SELECT "diem" FROM "KETQUA" WHERE "maBaiKiemTra"={maBKT}').fetchall()]
-        if not scores: continue
-        diem_tb = round(sum(scores)/len(scores),2)
-        diem_max = max(scores)
-        diem_min = min(scores)
-        diem_median = sorted(scores)[len(scores)//2]
-        exec_sql(
-            f"""INSERT INTO "THONGKEKIEMTRA"
-            ("maBaiKiemTra","maLopHoc","soLuongThamGia","diemTrungBinh","diemCaoNhat","diemThapNhat","diemTrungVi")
-            VALUES
-            ({maBKT},{maLop},{len(scores)},{diem_tb},{diem_max},{diem_min},{diem_median})"""
-        )
+    # --- super admin (giữ nguyên)
+    exec_sql(
+        """INSERT INTO "NGUOIDUNG" ("maToChuc","email","matKhauMaHoa","hoTen","vaiTro","soDienThoai")
+        VALUES
+        (NULL,'superadmin@eduscan.ai','$2b$12$/olbAOLO/ECDHvoP3ETrd.vPTUI2lJF6Dw9.lMzndIDgorHPIouCa','Super Admin','ADMIN','0900000000');"""
+    )
 
 # ============================================================
 #                   D O W N G R A D E

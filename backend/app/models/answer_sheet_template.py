@@ -12,6 +12,7 @@ class AnswerSheetTemplate(Base):
     __tablename__ = "MAUPHIEUTRALOI"
     
     maMauPhieu = Column(BigInteger, primary_key=True, index=True, autoincrement=True)
+    tenMauPhieu = Column(String(255), nullable=False)
     maToChuc = Column(BigInteger, ForeignKey("TOCHUC.maToChuc", ondelete="CASCADE"), index=True, nullable=True)  
     maNguoiTao = Column(BigInteger, ForeignKey("NGUOIDUNG.maNguoiDung", ondelete="CASCADE"), index=True, nullable=False)  
     soCauHoi = Column(Integer, nullable=False)
@@ -21,24 +22,6 @@ class AnswerSheetTemplate(Base):
     coThongTinHocSinh = Column(Boolean, nullable=False, default=True)
     coLogo = Column(Boolean, nullable=False, default=False)
     
-    # Sử dụng cauTrucJson để lưu thông tin file upload và AI config
-    # Format: {
-    #   "fileInfo": {
-    #     "urlFileMau": "...",
-    #     "urlFilePreview": "...", 
-    #     "tenFileGoc": "...",
-    #     "kichThuocFile": 123456,
-    #     "loaiFile": "pdf",
-    #     "cloudProvider": "local",
-    #     "cloudFileId": "..."
-    #   },
-    #   "aiConfig": {
-    #     "aiTemplateId": "...",
-    #     "recognitionAreas": [...],
-    #     "processingRules": {...}
-    #   },
-    #   "layout": {...} // Existing layout config
-    # }
     cauTrucJson = Column(JSONB, nullable=True)
     cssFormat = Column(Text, nullable=True)
     laMacDinh = Column(Boolean, nullable=False, default=False)

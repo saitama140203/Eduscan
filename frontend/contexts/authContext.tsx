@@ -146,7 +146,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
 
         // Lặng lẽ làm mới thông tin user ở background
-        authApi.getUser({ suppressErrors: true }).then(freshUserData => {
+        authApi.getMe().then(freshUserData => {
           if (freshUserData) {
             saveUserToCache(mapUserFromApi(freshUserData));
           }
@@ -158,7 +158,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } else {
         // Nếu không có cache hợp lệ, gọi API để xác thực
         debugLog("No valid cache. Fetching user from API.");
-        const userData = await authApi.getUser();
+        const userData = await authApi.getMe();
         const mappedUser = mapUserFromApi(userData);
         setUser(mappedUser);
         saveUserToCache(mappedUser);
@@ -203,7 +203,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         sameSite: "lax",
       })
       
-      const userData = await authApi.getUser();
+      const userData = await authApi.getMe();
       debugLog("[AuthProvider] getUser after login success.");
       const mappedUser = mapUserFromApi(userData);
       setUser(mappedUser);
@@ -229,8 +229,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return {
           success: false,
           message: error.message,
-          isNetworkError: error.isNetworkError,
-          status: error.status,
+          isNetworkError: false,
+          status: error.statusCode,
         };
       }
       

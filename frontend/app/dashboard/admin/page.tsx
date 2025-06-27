@@ -363,7 +363,7 @@ export default function AdminDashboard() {
               ) : recentActivities.length > 0 ? (
                 <div className="space-y-4">
                   {recentActivities.map((activity, index) => (
-                      <div key={`activity-${activity.id}-${index}`}>
+                      <div key={`activity-${index}-${activity.id || 'unknown'}-${activity.action?.replace(/\s+/g, '-') || 'action'}`}>
                         <div className="flex items-start space-x-3">
                           <div className="flex-shrink-0">
                             <ActivityBadge status={activity.status} />
