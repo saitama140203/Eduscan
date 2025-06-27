@@ -1,0 +1,1 @@
+# Eduscan - Hệ thống quét và chấm điểm bài thi trắc nghiệm AI 
