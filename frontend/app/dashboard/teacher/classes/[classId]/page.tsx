@@ -169,7 +169,7 @@ export default function TeacherClassDetailPage({ params }: ClassDetailProps) {
           <div className="flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{classDetail.capHoc}</Badge>
             <span className="text-sm text-muted-foreground">
-              Năm học: {classDetail.namHoc}
+              Năm học: {classDetail.nienKhoa || "Chưa cập nhật"}
             </span>
           </div>
         </div>
@@ -212,27 +212,17 @@ export default function TeacherClassDetailPage({ params }: ClassDetailProps) {
               <InfoItem
                 icon={FileText}
                 label="Trạng thái"
-                value={getStatusBadge(classDetail.trangThai)}
+                value={getStatusBadge(classDetail.trangThai ?? false)}
               />
             </div>
 
             {/* Additional Information */}
             <div className="space-y-4">
               <InfoItem
-                icon={FileText}
-                label="Mô tả"
-                value={classDetail.moTa || '—'}
-                variant={classDetail.moTa ? 'default' : 'muted'}
-              />
-              <InfoItem
-                icon={Clock}
-                label="Ngày tạo"
-                value={formatDate(classDetail.thoiGianTao)}
-              />
-              <InfoItem
-                icon={Clock}
-                label="Cập nhật lần cuối"
-                value={formatDate(classDetail.thoiGianCapNhat)}
+                icon={Users}
+                label="Niên khóa"
+                value={classDetail.nienKhoa || '—'}
+                variant={classDetail.nienKhoa ? 'default' : 'muted'}
               />
             </div>
           </div>

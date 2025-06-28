@@ -42,28 +42,465 @@ interface ScanResult {
   annotated_image?: string
 }
 
-// Components from the original file... (StatsCard, ClassSelector, etc. are assumed to be here)
-// For brevity, I will omit the component definitions that are not being changed.
-// ... (Paste StatsCard, ClassSelector, ExamCodeSelector, etc. here from your original file)
-const StatsCard = ({ title, value, subtitle, icon: Icon, color = "blue", trend }: { title: string; value: string | number; subtitle: string; icon: React.ComponentType<{ className?: string }>; color?: string; trend?: { value: number; label: string } }) => ( <Card className="hover:shadow-lg transition-all duration-300 group cursor-pointer"> <CardContent className="p-6"> <div className="flex items-center justify-between"> <div className="space-y-2"> <p className="text-sm font-medium text-muted-foreground">{title}</p> <div className="flex items-baseline space-x-2"> <h3 className="text-2xl font-bold">{value}</h3> {trend && ( <span className={clsx( "text-xs font-medium px-2 py-1 rounded-full", trend.value >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700" )}> {trend.value >= 0 ? "+" : ""}{trend.value}% {trend.label} </span> )} </div> <p className="text-xs text-muted-foreground">{subtitle}</p> </div> <div className={clsx( "w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300", color === "blue" && "bg-blue-100 text-blue-600", color === "green" && "bg-green-100 text-green-600", color === "purple" && "bg-purple-100 text-purple-600", color === "orange" && "bg-orange-100 text-orange-600" )}> <Icon className="w-6 h-6" /> </div> </div> </CardContent> </Card> )
-const ClassSelector = ({ classes, selectedClass, onSelect, isLoading }: { classes: Class[]; selectedClass: Class | null; onSelect: (classItem: Class) => void; isLoading: boolean }) => { const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid'); return ( <Card> <CardHeader className="pb-4"> <div className="flex items-center justify-between"> <div className="flex items-center gap-3"> <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center"> <Users className="w-5 h-5 text-blue-600" /> </div> <div> <CardTitle>Chọn lớp học</CardTitle> <p className="text-sm text-muted-foreground">Lựa chọn lớp để bắt đầu chấm điểm</p> </div> </div> <div className="flex items-center gap-2"> <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')}> <Grid className="w-4 h-4" /> </Button> <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')}> <List className="w-4 h-4" /> </Button> </div> </div> </CardHeader> <CardContent> <div className={clsx( "gap-4", viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "space-y-3" )}> {classes.map((classItem) => ( <div key={classItem.maLopHoc} className={clsx( "p-4 rounded-lg border transition-all duration-200 cursor-pointer group", "hover:shadow-md hover:border-blue-300", selectedClass?.maLopHoc === classItem.maLopHoc ? "border-blue-500 bg-blue-50 shadow-md" : "border-gray-200 hover:bg-gray-50" )} onClick={() => onSelect(classItem)}> <div className={clsx( "flex items-center", viewMode === 'grid' ? "flex-col text-center space-y-3" : "space-x-4" )}> <div className={clsx( "rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200", viewMode === 'grid' ? "w-12 h-12" : "w-10 h-10", selectedClass?.maLopHoc === classItem.maLopHoc ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600" )}> <Users className={clsx(viewMode === 'grid' ? "w-6 h-6" : "w-5 h-5")} /> </div> <div className="flex-1"> <h3 className={clsx( "font-semibold transition-colors", viewMode === 'grid' ? "text-base" : "text-sm", selectedClass?.maLopHoc === classItem.maLopHoc ? "text-blue-900" : "text-gray-900 group-hover:text-blue-700" )}> {classItem.tenLop} </h3> <p className={clsx( "text-muted-foreground", viewMode === 'grid' ? "text-sm" : "text-xs" )}> {classItem.capHoc} • {classItem.total_students} học sinh </p> {viewMode === 'grid' && ( <div className="flex justify-center mt-2"> <Badge variant="outline" className={clsx( selectedClass?.maLopHoc === classItem.maLopHoc ? "border-blue-500 text-blue-700" : "border-gray-300" )}> {classItem.total_exams} mã đề </Badge> </div> )} </div> {viewMode === 'list' && ( <div className="flex items-center space-x-2"> <Badge variant="outline" className={clsx( selectedClass?.maLopHoc === classItem.maLopHoc ? "border-blue-500 text-blue-700" : "border-gray-300" )}> {classItem.total_exams} mã đề </Badge> <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-blue-600 transition-colors" /> </div> )} </div> </div> ))} </div> </CardContent> </Card> ) }
-const ExamCodeSelector = ({ exams, selectedExam, onSelect, isLoading }: { exams: Exam[]; selectedExam: Exam | null; onSelect: (exam: Exam) => void; isLoading: boolean }) => ( <Card> <CardHeader className="pb-4"> <div className="flex items-center gap-3"> <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center"> <FileText className="w-5 h-5 text-green-600" /> </div> <div> <CardTitle>Chọn mã đề</CardTitle> <p className="text-sm text-muted-foreground">Lựa chọn đề thi cần chấm điểm</p> </div> </div> </CardHeader> <CardContent> <div className="grid grid-cols-1 md:grid-cols-2 gap-4"> {exams.map((exam) => ( <div key={exam.maBaiKiemTra} className={clsx( "p-4 rounded-lg border transition-all duration-200 cursor-pointer group", "hover:shadow-md hover:border-green-300", selectedExam?.maBaiKiemTra === exam.maBaiKiemTra ? "border-green-500 bg-green-50 shadow-md" : "border-gray-200 hover:bg-gray-50" )} onClick={() => onSelect(exam)}> <div className="flex items-start justify-between"> <div className="flex-1"> <div className="flex items-center gap-2 mb-2"> <h3 className={clsx( "font-semibold transition-colors", selectedExam?.maBaiKiemTra === exam.maBaiKiemTra ? "text-green-900" : "text-gray-900" )}> {exam.tieuDe} </h3> <Badge className={clsx( selectedExam?.maBaiKiemTra === exam.maBaiKiemTra ? "bg-green-600 text-white" : "bg-gray-100 text-gray-700" )}> {exam.tongSoCau} câu </Badge> </div> <p className="text-sm text-muted-foreground mb-3">{exam.moTa || 'Không có mô tả'}</p> <div className="flex items-center gap-4 text-xs text-muted-foreground"> <span className="flex items-center gap-1"> <Clock className="w-3 h-3" /> {new Date(exam.thoiGianTao).toLocaleDateString('vi-VN')} </span> <span className={clsx( "flex items-center gap-1", exam.trangThai === 'xuatBan' ? "text-green-600" : "text-red-600" )}> {exam.trangThai === 'xuatBan' ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />} {exam.trangThai === 'xuatBan' ? "Sẵn sàng" : "Nháp"} </span> </div> </div> <div className={clsx( "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200", selectedExam?.maBaiKiemTra === exam.maBaiKiemTra ? "bg-green-600 text-white scale-110" : "bg-gray-100 text-gray-400 group-hover:bg-green-100 group-hover:text-green-600" )}> <Target className="w-4 h-4" /> </div> </div> </div> ))} </div> </CardContent> </Card> )
-const ScanModeSelector = ({ onModeSelect, selectedMode }: { onModeSelect: (mode: 'upload' | 'webcam') => void; selectedMode: 'upload' | 'webcam' | null }) => ( <Card> <CardHeader className="pb-4"> <div className="flex items-center gap-3"> <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center"> <Scan className="w-5 h-5 text-purple-600" /> </div> <div> <CardTitle>Chọn phương thức chấm</CardTitle> <p className="text-sm text-muted-foreground">Lựa chọn cách thức quét phiếu trả lời</p> </div> </div> </CardHeader> <CardContent> <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> <div className={clsx( "p-6 rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer group", "hover:border-blue-400 hover:bg-blue-50/50", selectedMode === 'upload' ? "border-blue-500 bg-blue-50 shadow-lg" : "border-gray-300 hover:shadow-md" )} onClick={() => onModeSelect('upload')}> <div className="text-center space-y-4"> <div className={clsx( "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto transition-all duration-300", "group-hover:scale-110", selectedMode === 'upload' ? "bg-blue-600 text-white shadow-lg" : "bg-blue-100 text-blue-600 group-hover:bg-blue-200" )}> <Upload className="w-8 h-8" /> </div> <div> <h3 className={clsx( "text-lg font-semibold mb-2 transition-colors", selectedMode === 'upload' ? "text-blue-900" : "text-gray-900 group-hover:text-blue-700" )}> Tải lên ảnh </h3> <p className="text-sm text-muted-foreground leading-relaxed"> Chọn và tải lên ảnh phiếu trả lời từ thiết bị của bạn </p> </div> <div className="space-y-2 text-xs text-muted-foreground"> <div className="flex items-center justify-center gap-2"> <ImageIcon className="w-3 h-3" /> <span>Hỗ trợ JPG, PNG, PDF</span> </div> <div className="flex items-center justify-center gap-2"> <Zap className="w-3 h-3" /> <span>Xử lý hàng loạt</span> </div> </div> </div> </div> <div className={clsx( "p-6 rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer group", "hover:border-green-400 hover:bg-green-50/50", selectedMode === 'webcam' ? "border-green-500 bg-green-50 shadow-lg" : "border-gray-300 hover:shadow-md" )} onClick={() => onModeSelect('webcam')}> <div className="text-center space-y-4"> <div className={clsx( "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto transition-all duration-300", "group-hover:scale-110", selectedMode === 'webcam' ? "bg-green-600 text-white shadow-lg" : "bg-green-100 text-green-600 group-hover:bg-green-200" )}> <Camera className="w-8 h-8" /> </div> <div> <h3 className={clsx( "text-lg font-semibold mb-2 transition-colors", selectedMode === 'webcam' ? "text-green-900" : "text-gray-900 group-hover:text-green-700" )}> Quét trực tiếp </h3> <p className="text-sm text-muted-foreground leading-relaxed"> Sử dụng camera để quét phiếu trả lời theo thời gian thực </p> </div> <div className="space-y-2 text-xs text-muted-foreground"> <div className="flex items-center justify-center gap-2"> <Video className="w-3 h-3" /> <span>Realtime scanning</span> </div> <div className="flex items-center justify-center gap-2"> <Brain className="w-3 h-3" /> <span>AI detection</span> </div> </div> </div> </div> </div> </CardContent> </Card> )
-const ImageUploader = ({ onFilesSelected, isProcessing, files, onFileRemove }: { onFilesSelected: (files: FileList) => void; isProcessing: boolean; files: File[]; onFileRemove: (file: File) => void }) => { const [dragOver, setDragOver] = useState(false); const fileInputRef = useRef<HTMLInputElement>(null); const handleDrop = useCallback((e: React.DragEvent) => { e.preventDefault(); setDragOver(false); const files = e.dataTransfer.files; if (files.length > 0) { onFilesSelected(files); } }, [onFilesSelected]); const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => { const files = e.target.files; if (files && files.length > 0) { onFilesSelected(files); } }, [onFilesSelected]); return ( <Card> <CardHeader> <CardTitle className="flex items-center gap-2"> <Upload className="w-5 h-5" /> Tải lên phiếu trả lời </CardTitle> </CardHeader> <CardContent> <div className={clsx( "relative border-2 border-dashed rounded-xl p-8 transition-all duration-300", "hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer", dragOver ? "border-blue-500 bg-blue-50" : "border-gray-300", isProcessing && "pointer-events-none opacity-60" )} onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onClick={() => fileInputRef.current?.click()}> <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileInput} className="hidden" disabled={isProcessing} /> <div className="text-center space-y-4"> {isProcessing ? ( <> <Loader2 className="w-12 h-12 text-blue-500 mx-auto animate-spin" /> <div> <p className="text-lg font-medium text-blue-600">Đang xử lý...</p> <p className="text-sm text-muted-foreground">AI đang phân tích phiếu trả lời</p> </div> </> ) : ( <> <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto"> <Upload className="w-8 h-8 text-blue-600" /> </div> <div> <p className="text-lg font-semibold text-gray-900 mb-2"> {dragOver ? "Thả file vào đây" : "Kéo thả hoặc click để chọn file"} </p> <p className="text-sm text-muted-foreground"> Hỗ trợ JPG, PNG, PDF • Tối đa 10MB mỗi file </p> </div> <Button variant="outline" size="lg" className="mt-4"> <Plus className="w-4 h-4 mr-2" /> Chọn file </Button> </> )} </div> </div> <div className="mt-4 grid grid-cols-4 gap-4"> {files.map((file, i) => ( <div key={i} className="relative"> <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-auto rounded-md" /> <button onClick={() => onFileRemove(file)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1"><X size={12} /></button> </div> ))} </div> </CardContent> </Card> ) }
-const ResultsDisplay = ({ results, examCode, classId, onSaveAll }: { results: ScanResult[], examCode: Exam | null, classId?: number | null, onSaveAll: () => Promise<void> }) => {
+// StatsCard Component
+const StatsCard = ({ title, value, subtitle, icon: Icon, color = "blue", trend }: { 
+  title: string; 
+  value: string | number; 
+  subtitle: string; 
+  icon: React.ComponentType<{ className?: string }>; 
+  color?: string; 
+  trend?: { value: number; label: string } 
+}) => (
+  <Card className="hover:shadow-lg transition-all duration-300 group cursor-pointer">
+    <CardContent className="p-6">
+      <div className="flex items-center justify-between">
+        <div className="space-y-2">
+          <p className="text-sm font-medium text-muted-foreground">{title}</p>
+          <div className="flex items-baseline space-x-2">
+            <h3 className="text-2xl font-bold">{value}</h3>
+            {trend && (
+              <span className={clsx(
+                "text-xs font-medium px-2 py-1 rounded-full",
+                trend.value >= 0 ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+              )}>
+                {trend.value >= 0 ? "+" : ""}{trend.value}% {trend.label}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">{subtitle}</p>
+        </div>
+        <div className={clsx(
+          "w-12 h-12 rounded-xl flex items-center justify-center group-hover:scale-110 transition-transform duration-300",
+          color === "blue" && "bg-blue-100 text-blue-600",
+          color === "green" && "bg-green-100 text-green-600",
+          color === "purple" && "bg-purple-100 text-purple-600",
+          color === "orange" && "bg-orange-100 text-orange-600"
+        )}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)
+
+// ClassSelector Component
+const ClassSelector = ({ classes, selectedClass, onSelect, isLoading }: { 
+  classes: Class[]; 
+  selectedClass: Class | null; 
+  onSelect: (classItem: Class) => void; 
+  isLoading: boolean 
+}) => {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  
+  return (
+    <Card>
+      <CardHeader className="pb-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Users className="w-5 h-5 text-blue-600" />
+            </div>
+            <div>
+              <CardTitle>Chọn lớp học</CardTitle>
+              <p className="text-sm text-muted-foreground">Lựa chọn lớp để bắt đầu chấm điểm</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')}>
+              <Grid className="w-4 h-4" />
+            </Button>
+            <Button variant={viewMode === 'list' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('list')}>
+              <List className="w-4 h-4" />
+            </Button>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className={clsx(
+          "gap-4",
+          viewMode === 'grid' ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3" : "space-y-3"
+        )}>
+          {classes.map((classItem) => (
+            <div key={classItem.maLopHoc} className={clsx(
+              "p-4 rounded-lg border transition-all duration-200 cursor-pointer group",
+              "hover:shadow-md hover:border-blue-300",
+              selectedClass?.maLopHoc === classItem.maLopHoc 
+                ? "border-blue-500 bg-blue-50 shadow-md" 
+                : "border-gray-200 hover:bg-gray-50"
+            )} onClick={() => onSelect(classItem)}>
+              <div className={clsx(
+                "flex items-center",
+                viewMode === 'grid' ? "flex-col text-center space-y-3" : "space-x-4"
+              )}>
+                <div className={clsx(
+                  "rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-200",
+                  viewMode === 'grid' ? "w-12 h-12" : "w-10 h-10",
+                  selectedClass?.maLopHoc === classItem.maLopHoc 
+                    ? "bg-blue-600 text-white" 
+                    : "bg-gray-100 text-gray-600 group-hover:bg-blue-100 group-hover:text-blue-600"
+                )}>
+                  <Users className={clsx(viewMode === 'grid' ? "w-6 h-6" : "w-5 h-5")} />
+                </div>
+                <div className="flex-1">
+                  <h3 className={clsx(
+                    "font-semibold transition-colors",
+                    viewMode === 'grid' ? "text-base" : "text-sm",
+                    selectedClass?.maLopHoc === classItem.maLopHoc 
+                      ? "text-blue-900" 
+                      : "text-gray-900 group-hover:text-blue-700"
+                  )}>
+                    {classItem.tenLop}
+                  </h3>
+                  <p className={clsx(
+                    "text-muted-foreground",
+                    viewMode === 'grid' ? "text-sm" : "text-xs"
+                  )}>
+                    {classItem.capHoc} • {classItem.total_students} học sinh
+                  </p>
+                  {viewMode === 'grid' && (
+                    <div className="flex justify-center mt-2">
+                      <Badge variant="outline" className={clsx(
+                        selectedClass?.maLopHoc === classItem.maLopHoc 
+                          ? "border-blue-500 text-blue-700" 
+                          : "border-gray-300"
+                      )}>
+                        {classItem.total_exams} mã đề
+                      </Badge>
+                    </div>
+                  )}
+                </div>
+                {viewMode === 'list' && (
+                  <div className="flex items-center space-x-2">
+                    <Badge variant="outline" className={clsx(
+                      selectedClass?.maLopHoc === classItem.maLopHoc 
+                        ? "border-blue-500 text-blue-700" 
+                        : "border-gray-300"
+                    )}>
+                      {classItem.total_exams} mã đề
+                    </Badge>
+                    <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-blue-600 transition-colors" />
+                  </div>
+                )}
+              </div>
+            </div>
+          ))}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ExamCodeSelector Component
+const ExamCodeSelector = ({ exams, selectedExam, onSelect, isLoading }: { 
+  exams: Exam[]; 
+  selectedExam: Exam | null; 
+  onSelect: (exam: Exam) => void; 
+  isLoading: boolean 
+}) => (
+  <Card>
+    <CardHeader className="pb-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+          <FileText className="w-5 h-5 text-green-600" />
+        </div>
+        <div>
+          <CardTitle>Chọn mã đề</CardTitle>
+          <p className="text-sm text-muted-foreground">Lựa chọn đề thi cần chấm điểm</p>
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {exams.map((exam) => (
+          <div key={exam.maBaiKiemTra} className={clsx(
+            "p-4 rounded-lg border transition-all duration-200 cursor-pointer group",
+            "hover:shadow-md hover:border-green-300",
+            selectedExam?.maBaiKiemTra === exam.maBaiKiemTra 
+              ? "border-green-500 bg-green-50 shadow-md" 
+              : "border-gray-200 hover:bg-gray-50"
+          )} onClick={() => onSelect(exam)}>
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <h3 className={clsx(
+                    "font-semibold transition-colors",
+                    selectedExam?.maBaiKiemTra === exam.maBaiKiemTra 
+                      ? "text-green-900" 
+                      : "text-gray-900"
+                  )}>
+                    {exam.tieuDe}
+                  </h3>
+                  <Badge className={clsx(
+                    selectedExam?.maBaiKiemTra === exam.maBaiKiemTra 
+                      ? "bg-green-600 text-white" 
+                      : "bg-gray-100 text-gray-700"
+                  )}>
+                    {exam.tongSoCau} câu
+                  </Badge>
+                </div>
+                <p className="text-sm text-muted-foreground mb-3">{exam.moTa || 'Không có mô tả'}</p>
+                <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                  <span className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {new Date(exam.thoiGianTao).toLocaleDateString('vi-VN')}
+                  </span>
+                  <span className={clsx(
+                    "flex items-center gap-1",
+                    exam.trangThai === 'xuatBan' ? "text-green-600" : "text-red-600"
+                  )}>
+                    {exam.trangThai === 'xuatBan' ? <CheckCircle className="w-3 h-3" /> : <AlertCircle className="w-3 h-3" />}
+                    {exam.trangThai === 'xuatBan' ? "Sẵn sàng" : "Nháp"}
+                  </span>
+                </div>
+              </div>
+              <div className={clsx(
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all duration-200",
+                selectedExam?.maBaiKiemTra === exam.maBaiKiemTra 
+                  ? "bg-green-600 text-white scale-110" 
+                  : "bg-gray-100 text-gray-400 group-hover:bg-green-100 group-hover:text-green-600"
+              )}>
+                <Target className="w-4 h-4" />
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </CardContent>
+  </Card>
+)
+
+// ScanModeSelector Component
+const ScanModeSelector = ({ onModeSelect, selectedMode }: { 
+  onModeSelect: (mode: 'upload' | 'webcam') => void; 
+  selectedMode: 'upload' | 'webcam' | null 
+}) => (
+  <Card>
+    <CardHeader className="pb-4">
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+          <Scan className="w-5 h-5 text-purple-600" />
+        </div>
+        <div>
+          <CardTitle>Chọn phương thức chấm</CardTitle>
+          <p className="text-sm text-muted-foreground">Lựa chọn cách thức quét phiếu trả lời</p>
+        </div>
+      </div>
+    </CardHeader>
+    <CardContent>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className={clsx(
+          "p-6 rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer group",
+          "hover:border-blue-400 hover:bg-blue-50/50",
+          selectedMode === 'upload' 
+            ? "border-blue-500 bg-blue-50 shadow-lg" 
+            : "border-gray-300 hover:shadow-md"
+        )} onClick={() => onModeSelect('upload')}>
+          <div className="text-center space-y-4">
+            <div className={clsx(
+              "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto transition-all duration-300",
+              "group-hover:scale-110",
+              selectedMode === 'upload' 
+                ? "bg-blue-600 text-white shadow-lg" 
+                : "bg-blue-100 text-blue-600 group-hover:bg-blue-200"
+            )}>
+              <Upload className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className={clsx(
+                "text-lg font-semibold mb-2 transition-colors",
+                selectedMode === 'upload' 
+                  ? "text-blue-900" 
+                  : "text-gray-900 group-hover:text-blue-700"
+              )}>
+                Tải lên ảnh
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Chọn và tải lên ảnh phiếu trả lời từ thiết bị của bạn
+              </p>
+            </div>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center gap-2">
+                <ImageIcon className="w-3 h-3" />
+                <span>Hỗ trợ JPG, PNG, PDF</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Zap className="w-3 h-3" />
+                <span>Xử lý hàng loạt</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className={clsx(
+          "p-6 rounded-xl border-2 border-dashed transition-all duration-300 cursor-pointer group",
+          "hover:border-green-400 hover:bg-green-50/50",
+          selectedMode === 'webcam' 
+            ? "border-green-500 bg-green-50 shadow-lg" 
+            : "border-gray-300 hover:shadow-md"
+        )} onClick={() => onModeSelect('webcam')}>
+          <div className="text-center space-y-4">
+            <div className={clsx(
+              "w-16 h-16 rounded-2xl flex items-center justify-center mx-auto transition-all duration-300",
+              "group-hover:scale-110",
+              selectedMode === 'webcam' 
+                ? "bg-green-600 text-white shadow-lg" 
+                : "bg-green-100 text-green-600 group-hover:bg-green-200"
+            )}>
+              <Camera className="w-8 h-8" />
+            </div>
+            <div>
+              <h3 className={clsx(
+                "text-lg font-semibold mb-2 transition-colors",
+                selectedMode === 'webcam' 
+                  ? "text-green-900" 
+                  : "text-gray-900 group-hover:text-green-700"
+              )}>
+                Quét trực tiếp
+              </h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Sử dụng camera để quét phiếu trả lời theo thời gian thực
+              </p>
+            </div>
+            <div className="space-y-2 text-xs text-muted-foreground">
+              <div className="flex items-center justify-center gap-2">
+                <Video className="w-3 h-3" />
+                <span>Realtime scanning</span>
+              </div>
+              <div className="flex items-center justify-center gap-2">
+                <Brain className="w-3 h-3" />
+                <span>AI detection</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </CardContent>
+  </Card>
+)
+
+// ImageUploader Component
+const ImageUploader = ({ onFilesSelected, isProcessing, files, onFileRemove }: { 
+  onFilesSelected: (files: FileList) => void; 
+  isProcessing: boolean; 
+  files: File[]; 
+  onFileRemove: (file: File) => void 
+}) => {
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      onFilesSelected(files);
+    }
+  }, [onFilesSelected]);
+
+  const handleFileInput = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      onFilesSelected(files);
+    }
+  }, [onFilesSelected]);
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <Upload className="w-5 h-5" />
+          Tải lên phiếu trả lời
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        <div className={clsx(
+          "relative border-2 border-dashed rounded-xl p-8 transition-all duration-300",
+          "hover:border-blue-400 hover:bg-blue-50/50 cursor-pointer",
+          dragOver ? "border-blue-500 bg-blue-50" : "border-gray-300",
+          isProcessing && "pointer-events-none opacity-60"
+        )} onDrop={handleDrop} onDragOver={e => { e.preventDefault(); setDragOver(true); }} onDragLeave={() => setDragOver(false)} onClick={() => fileInputRef.current?.click()}>
+          <input ref={fileInputRef} type="file" accept="image/*,.pdf" multiple onChange={handleFileInput} className="hidden" disabled={isProcessing} />
+          <div className="text-center space-y-4">
+            {isProcessing ? (
+              <>
+                <Loader2 className="w-12 h-12 text-blue-500 mx-auto animate-spin" />
+                <div>
+                  <p className="text-lg font-medium text-blue-600">Đang xử lý...</p>
+                  <p className="text-sm text-muted-foreground">AI đang phân tích phiếu trả lời</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto">
+                  <Upload className="w-8 h-8 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-lg font-semibold text-gray-900 mb-2">
+                    {dragOver ? "Thả file vào đây" : "Kéo thả hoặc click để chọn file"}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Hỗ trợ JPG, PNG, PDF • Tối đa 10MB mỗi file
+                  </p>
+                </div>
+                <Button variant="outline" size="lg" className="mt-4">
+                  <Plus className="w-4 h-4 mr-2" />
+                  Chọn file
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+        {files.length > 0 && (
+          <div className="mt-4 grid grid-cols-4 gap-4">
+            {files.map((file, i) => (
+              <div key={i} className="relative">
+                <img src={URL.createObjectURL(file)} alt={file.name} className="w-full h-auto rounded-md" />
+                <button onClick={() => onFileRemove(file)} className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1">
+                  <X size={12} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ResultsDisplay Component
+const ResultsDisplay = ({ 
+  results, 
+  examCode, 
+  classId, 
+  onSaveAll, 
+  onClearResults,
+  isSaving 
+}: { 
+  results: ScanResult[], 
+  examCode: Exam | null, 
+  classId?: number | null, 
+  onSaveAll: () => Promise<void>,
+  onClearResults?: () => void,
+  isSaving?: boolean 
+}) => {
   const { toast } = useToast();
   const [selectedResult, setSelectedResult] = useState<ScanResult | null>(null);
   const [viewMode, setViewMode] = useState<'table' | 'grid'>('table');
-  const [isSaving, setIsSaving] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
 
   const handleExport = async () => {
     if (!examCode || !examCode.maBaiKiemTra) {
       toast({ title: "Lỗi", description: "Vui lòng chọn mã đề thi trước khi xuất file.", variant: "destructive" });
       return;
     }
+    
+    setIsExporting(true);
     toast({ title: "Đang xử lý", description: "Đang chuẩn bị file Excel, vui lòng chờ..." });
+    
     try {
-      const blob = await omrApi.exportExcel(examCode.maBaiKiemTra, classId);
+      const blob = await omrApi.exportExcel(
+        examCode.maBaiKiemTra,
+        classId != null ? classId : undefined
+      );
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -75,21 +512,10 @@ const ResultsDisplay = ({ results, examCode, classId, onSaveAll }: { results: Sc
     } catch (error) {
       console.error("Export failed:", error);
       toast({ title: "Xuất file thất bại", description: error instanceof Error ? error.message : "Có lỗi xảy ra, vui lòng thử lại.", variant: "destructive" });
+    } finally {
+      setIsExporting(false);
     }
   };
-
-  const handleSaveAll = async () => {
-    setIsSaving(true);
-    toast({ title: "Đang lưu...", description: `Đang lưu ${results.length} kết quả.`});
-    try {
-      await onSaveAll();
-      toast({ title: "Thành công", description: "Tất cả kết quả đã được lưu."});
-    } catch (error) {
-      toast({ title: "Lỗi", description: "Không thể lưu kết quả.", variant: "destructive" });
-    } finally {
-      setIsSaving(false);
-    }
-  }
 
   if (results.length === 0) {
     return (
@@ -136,22 +562,87 @@ const ResultsDisplay = ({ results, examCode, classId, onSaveAll }: { results: Sc
           </div>
         </div>
       )}
+      
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
             <CardTitle>Kết quả chấm điểm</CardTitle>
-            <div className="flex gap-2">
-              <Button onClick={handleSaveAll} disabled={isSaving || results.length === 0}>
+            <div className="flex gap-2 flex-wrap">
+              {/* Nút Lưu tất cả */}
+              <Button 
+                onClick={onSaveAll} 
+                disabled={isSaving || results.length === 0}
+                className="bg-green-600 hover:bg-green-700"
+              >
                 {isSaving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-                Lưu tất cả ({results.length})
+                {isSaving ? 'Đang lưu...' : `Lưu tất cả (${results.length})`}
               </Button>
-              <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('table')}><List className="w-4 h-4 mr-2" /> Bảng</Button>
-              <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')}><Grid className="w-4 h-4 mr-2" /> Lưới</Button>
-              <Button variant="outline" size="sm" onClick={handleExport}> <Download className="w-4 h-4 mr-2" /> Xuất Excel </Button>
+              
+              {/* Nút Xóa kết quả */}
+              {onClearResults && results.length > 0 && (
+                <Button 
+                  variant="outline" 
+                  onClick={onClearResults}
+                  disabled={isSaving}
+                  className="border-red-200 text-red-600 hover:bg-red-50"
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Xóa kết quả
+                </Button>
+              )}
+              
+              {/* Các nút khác */}
+              <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('table')}>
+                <List className="w-4 h-4 mr-2" /> Bảng
+              </Button>
+              <Button variant={viewMode === 'grid' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('grid')}>
+                <Grid className="w-4 h-4 mr-2" /> Lưới
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExport}
+                disabled={isExporting || results.length === 0}
+              > 
+                {isExporting ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Download className="w-4 h-4 mr-2" />}
+                {isExporting ? 'Đang xuất...' : 'Xuất Excel'}
+              </Button>
             </div>
           </div>
+          
+          {/* Thông tin trạng thái */}
+          {results.length > 0 && (
+            <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <CheckCircle className="w-4 h-4 text-green-600" />
+                {results.filter(r => r.matched).length} đã khớp học sinh
+              </span>
+              <span className="flex items-center gap-1">
+                <AlertCircle className="w-4 h-4 text-orange-600" />
+                {results.filter(r => !r.matched).length} chưa khớp
+              </span>
+              <span className="flex items-center gap-1">
+                <BarChart3 className="w-4 h-4 text-blue-600" />
+                {results.filter(r => r.score !== null).length} đã có điểm
+              </span>
+            </div>
+          )}
         </CardHeader>
+        
         <CardContent>
+          {/* Hiển thị thông báo khi đang lưu */}
+          {isSaving && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center gap-2 text-blue-700">
+                <Loader2 className="w-4 h-4 animate-spin" />
+                <span className="font-medium">Đang lưu kết quả vào hệ thống...</span>
+              </div>
+              <p className="text-sm text-blue-600 mt-1">
+                Vui lòng chờ, quá trình này có thể mất vài giây.
+              </p>
+            </div>
+          )}
+          
           {viewMode === 'table' ? (
             <div className="overflow-x-auto">
               <table className="w-full text-sm text-left">
@@ -178,9 +669,13 @@ const ResultsDisplay = ({ results, examCode, classId, onSaveAll }: { results: Sc
                       </td>
                       <td className="py-3 px-2">
                         {result.matched ? (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"> <CheckCircle className="w-3 h-3 mr-1" /> Đã khớp </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800"> 
+                            <CheckCircle className="w-3 h-3 mr-1" /> Đã khớp 
+                          </span>
                         ) : (
-                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"> <X className="w-3 h-3 mr-1" /> Chưa khớp </span>
+                          <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800"> 
+                            <X className="w-3 h-3 mr-1" /> Chưa khớp 
+                          </span>
                         )}
                       </td>
                       <td className="py-3 px-2 text-gray-900">
@@ -270,6 +765,7 @@ const ResultsDisplay = ({ results, examCode, classId, onSaveAll }: { results: Sc
   );
 }
 
+// Main OMRScanPage Component
 const OMRScanPage = () => {
   const searchParams = useSearchParams()
   const initialClassId = searchParams.get('classId')
@@ -282,6 +778,7 @@ const OMRScanPage = () => {
   const [files, setFiles] = useState<File[]>([])
   const [scanResults, setScanResults] = useState<ScanResult[]>([])
   const [isUploadProcessing, setIsUploadProcessing] = useState(false)
+  const [isSavingResults, setIsSavingResults] = useState(false) // Thêm state cho saving
   const { toast } = useToast()
   
   const { data: classes = [], isLoading: isLoadingClasses } = useQuery({
@@ -309,7 +806,6 @@ const OMRScanPage = () => {
         return await answerTemplatesApi.getTemplate(selectedExam.maMauPhieu);
       } catch (error) {
         console.error('Failed to fetch template details:', error);
-        // Return null instead of throwing to prevent breaking the UI
         return null;
       }
     },
@@ -331,7 +827,6 @@ const OMRScanPage = () => {
     examId: selectedExamId ?? undefined,
     templateId: selectedExam?.maMauPhieu ?? undefined,
     onResult: (result) => {
-      // Results are now handled in real-time, not automatically added to list
       console.log('Received OMR result:', result);
     },
     onResultSaved: (result) => {
@@ -363,8 +858,6 @@ const OMRScanPage = () => {
       });
       return;
     }
-
-    // Removed template validation since OMR API handles it internally
     
     if (files.length === 0) {
       toast({
@@ -380,10 +873,10 @@ const OMRScanPage = () => {
       toast({
         title: "Lỗi",
         description: "Không tìm thấy thông tin mẫu phiếu của đề thi.",
-          variant: "destructive",
-        });
-        return;
-      }
+        variant: "destructive",
+      });
+      return;
+    }
 
     try {
       setIsUploadProcessing(true);
@@ -395,7 +888,7 @@ const OMRScanPage = () => {
         classId: selectedClassId
       });
       
-        toast({
+      toast({
         title: "Đang xử lý",
         description: `Đang chấm ${files.length} phiếu trả lời với AI OMR...`,
       });
@@ -441,7 +934,7 @@ const OMRScanPage = () => {
           
           toast({
             title: "Chấm bài thành công",
-            description: `Đã xử lý và chấm điểm ${newResults.length} phiếu trả lời.`,
+            description: `Đã xử lý và chấm điểm ${newResults.length} phiếu trả lời. Bạn có thể tiếp tục upload thêm hoặc lưu kết quả.`,
           });
         }
       } else {
@@ -461,21 +954,111 @@ const OMRScanPage = () => {
     }
   };
 
+  // Sửa đổi handleSaveAllResults - Loại bỏ việc xóa scanResults
+  const handleSaveAllResults = async () => {
+    if (!selectedExamId || scanResults.length === 0) {
+      toast({ title: "Không có gì để lưu", variant: "destructive" });
+      return;
+    }
+
+    const payload = {
+        exam_id: selectedExamId,
+        results: scanResults.map(r => ({
+            student_answers: Array.isArray(r.answers) 
+                ? r.answers.reduce((acc, ans) => {
+                    acc[ans.question_id] = ans.student_answer;
+                    return acc;
+                  }, {})
+                : r.answers || {},
+            sbd: r.sbd || '',
+            filename: r.filename,
+            annotated_image_path: r.annotated_image || null
+        }))
+    };
+
+    try {
+        setIsSavingResults(true);
+        
+        toast({
+          title: "Đang lưu...",
+          description: `Đang lưu ${payload.results.length} kết quả vào hệ thống...`,
+        });
+
+        await omrApi.saveResults(payload);
+        
+        // Hiển thị thông báo thành công rõ ràng
+        toast({ 
+          title: "✅ Lưu thành công!", 
+          description: `Đã lưu thành công ${payload.results.length} kết quả vào hệ thống. Kết quả sẽ được giữ lại để bạn có thể xem lại.`,
+          duration: 5000
+        });
+        
+        // KHÔNG XÓA scanResults
+        // setScanResults([]); // BỎ DÒNG NÀY
+        
+        await refetchStats();
+        
+        // Thông báo gợi ý
+        setTimeout(() => {
+          toast({
+            title: "Gợi ý",
+            description: "Bạn có thể tiếp tục upload thêm ảnh hoặc bấm 'Làm mới' để bắt đầu lại.",
+          });
+        }, 2000);
+        
+    } catch (error: any) {
+        console.error("Failed to save results:", error);
+        toast({ 
+          title: "❌ Lỗi lưu kết quả", 
+          description: `Không thể lưu kết quả: ${error.message || 'Lỗi không xác định'}. Vui lòng thử lại.`, 
+          variant: "destructive",
+          duration: 7000
+        });
+    } finally {
+        setIsSavingResults(false);
+    }
+  }
+
+  // Thêm function để xóa kết quả
+  const clearResults = () => {
+    if (scanResults.length === 0) return;
+    
+    const isConfirmed = window.confirm(
+      `Bạn có chắc muốn xóa tất cả ${scanResults.length} kết quả? Hành động này không thể hoàn tác.`
+    );
+    
+    if (isConfirmed) {
+      setScanResults([]);
+      setFiles([]);
+      toast({
+        title: "Đã xóa kết quả",
+        description: "Tất cả kết quả đã được xóa. Bạn có thể bắt đầu upload mới.",
+      });
+    }
+  }
+
   const resetAll = () => {
     setSelectedClassId(null);
     setSelectedExamId(null);
     setScanMode(null);
     setFiles([]);
     setScanResults([]);
+    setIsUploadProcessing(false);
+    setIsSavingResults(false);
+    
+    toast({
+      title: "Đã làm mới",
+      description: "Hệ thống đã được thiết lập lại từ đầu.",
+    });
   }
 
   const selectedClass = useMemo(() => classes.find((c: Class) => c.maLopHoc === selectedClassId), [classes, selectedClassId]);
 
-  const { data: stats } = useQuery({
-    queryKey: ['omrStats', selectedExamId, selectedClassId],
+  const { data: stats, refetch: refetchStats } = useQuery({
+    queryKey: ['omrStats', selectedExamId],
     queryFn: () => {
-      if (!selectedExamId) return Promise.resolve(null);
-      return omrApi.getStats(selectedExamId, selectedClassId ?? undefined);
+        if (!selectedExamId) return null;
+        return omrApi.getStats(selectedExamId);
     },
     enabled: !!selectedExamId,
   });
@@ -486,18 +1069,6 @@ const OMRScanPage = () => {
     { title: "Điểm trung bình", value: stats?.average_score?.toFixed(2) ?? 'N/A', subtitle: "Toàn bộ bài chấm", icon: BarChart3, color: "purple" },
     { title: "Tỉ lệ lỗi", value: `${stats?.error_rate?.toFixed(1) ?? 0}%`, subtitle: "Phiếu không hợp lệ", icon: AlertCircle, color: "orange" },
   ], [stats]);
-
-  const handleSaveAllResults = async () => {
-    if (!selectedExamId || scanResults.length === 0) return;
-    try {
-      await omrApi.saveResults(selectedExamId, scanResults);
-      // Có thể xóa kết quả đã lưu khỏi UI
-      setScanResults([]);
-    } catch (error) {
-      console.error("Failed to save results:", error);
-      throw error;
-    }
-  }
 
   return (
     <div className="container mx-auto py-6 max-w-7xl space-y-6">
@@ -589,60 +1160,99 @@ const OMRScanPage = () => {
                 />
             ) : (
                 <div className="space-y-6">
-              <ImageUploader
-                onFilesSelected={(files) => setFiles(Array.from(files))}
-                        isProcessing={isUploadProcessing}
-                files={files}
-                onFileRemove={(file) => setFiles(files.filter(f => f !== file))}
-              />
+                  {/* Hiển thị thông báo về kết quả hiện tại */}
+                  {scanResults.length > 0 && (
+                    <Card className="border-l-4 border-l-blue-500 bg-blue-50/50">
+                      <CardContent className="py-4">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                              <BarChart3 className="w-4 h-4 text-blue-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-blue-900">
+                                Đã có {scanResults.length} kết quả trước đó
+                              </h4>
+                              <p className="text-sm text-blue-700">
+                                Bạn có thể tiếp tục upload thêm ảnh hoặc lưu kết quả hiện tại
+                              </p>
+                            </div>
+                          </div>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => {
+                              const element = document.getElementById('results-section');
+                              element?.scrollIntoView({ behavior: 'smooth' });
+                            }}
+                            className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                          >
+                            Xem kết quả
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+
+                  <ImageUploader
+                    onFilesSelected={(files) => setFiles(Array.from(files))}
+                    isProcessing={isUploadProcessing}
+                    files={files}
+                    onFileRemove={(file) => setFiles(files.filter(f => f !== file))}
+                  />
                     
-                {files.length > 0 && (
-                        <Card>
-                            <CardContent className="py-6">
-                                <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                                            <Brain className="w-5 h-5 text-green-600" />
-                                        </div>
-                                        <div>
-                                            <h3 className="font-semibold text-gray-900">Sẵn sàng chấm bài</h3>
-                                            <p className="text-sm text-muted-foreground">
-                                                {files.length} phiếu trả lời đã được tải lên
-                                            </p>
-                                        </div>
-                      </div>
-                      <Button
-                        onClick={handleStartProcessing}
-                                        size="lg"
-                                        className="bg-green-600 hover:bg-green-700 text-white px-8"
-                                        disabled={isUploadProcessing}
-                      >
-                                        {isUploadProcessing ? (
-                          <>
-                                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Đang xử lý...
-                          </>
-                        ) : (
-                          <>
-                                                <Zap className="w-4 h-4 mr-2" />
-                                                Bắt đầu chấm bài
-                          </>
-                        )}
-                      </Button>
-                                </div>
-                    </CardContent>
-                  </Card>
-                )}
+                  {files.length > 0 && (
+                    <Card>
+                      <CardContent className="py-6">
+                        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
+                              <Brain className="w-5 h-5 text-green-600" />
+                            </div>
+                            <div>
+                              <h3 className="font-semibold text-gray-900">Sẵn sàng chấm bài</h3>
+                              <p className="text-sm text-muted-foreground">
+                                {files.length} phiếu trả lời đã được tải lên
+                                {scanResults.length > 0 && ` • ${scanResults.length} kết quả trước đó sẽ được giữ lại`}
+                              </p>
+                            </div>
+                          </div>
+                          <Button
+                            onClick={handleStartProcessing}
+                            size="lg"
+                            className="bg-green-600 hover:bg-green-700 text-white px-8"
+                            disabled={isUploadProcessing}
+                          >
+                            {isUploadProcessing ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Đang xử lý...
+                              </>
+                            ) : (
+                              <>
+                                <Zap className="w-4 h-4 mr-2" />
+                                Bắt đầu chấm bài
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
             )}
             
             {!isScanning && (
-            <ResultsDisplay
-              results={scanResults}
-                examCode={selectedExam || null}
-                classId={selectedClassId ?? undefined}
-                onSaveAll={handleSaveAllResults}
-            />
+              <div id="results-section">
+                <ResultsDisplay
+                  results={scanResults}
+                  examCode={selectedExam || null}
+                  classId={selectedClassId ?? undefined}
+                  onSaveAll={handleSaveAllResults}
+                  onClearResults={clearResults}
+                  isSaving={isSavingResults}
+                />
+              </div>
             )}
           </div>
         )}

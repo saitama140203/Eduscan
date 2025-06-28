@@ -50,7 +50,7 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
   useEffect(() => {
     onResultSavedRef.current = onResultSaved;
   }, [onResultSaved]);
-
+  
   const getToken = useCallback(() => {
     if (typeof window === 'undefined') return null;
     return localStorage.getItem('access_token');
@@ -117,7 +117,7 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
         variant: "destructive" 
       });
     });
-
+    
     newSocket.on('connected', (data) => {
       console.log('Connected message:', data);
     });
@@ -216,7 +216,7 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
         } else {
             // Nếu chưa kết nối, thử lại sau một chút
             setTimeout(start, 100);
-        }
+    }
     };
 
     if (!examId || !templateId) {

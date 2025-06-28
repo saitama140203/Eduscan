@@ -10,9 +10,18 @@ import {
   AlertDialogCancel,
   AlertDialogAction
 } from "@/components/ui/alert-dialog";
+import { User } from "@/hooks/use-users";
+
+interface ActivateUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: User | null;
+  onActivate: () => void;
+  loading?: boolean;
+}
 
 // Thêm prop user (có thể null)
-export function ActivateUserDialog({ open, onOpenChange, user, onActivate, loading = false }) {
+export function ActivateUserDialog({ open, onOpenChange, user, onActivate, loading = false }: ActivateUserDialogProps) {
   // Nếu không có user thì không render (bảo vệ lỗi hydration)
   if (!user) return null;
 

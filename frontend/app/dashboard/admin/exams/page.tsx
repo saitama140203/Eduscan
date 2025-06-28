@@ -133,7 +133,7 @@ export default function AdminExamsPage() {
 
   const handleStatusChange = async (examId: number, newStatus: 'nhap' | 'xuatBan' | 'dongDaChAm') => {
     updateExamMutation.mutate({
-      id: examId,
+      examId: examId,
       data: { trangThai: newStatus }
     })
   }

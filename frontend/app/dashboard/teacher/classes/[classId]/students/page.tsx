@@ -107,7 +107,7 @@ export default function TeacherClassStudentsPage() {
                 <code className="text-white">{data.errors.slice(0, 5).join('\n')}</code>
               </pre>
             ),
-            variant: "warning",
+            variant: "destructive",
             duration: 10000,
       })
       }
@@ -177,7 +177,7 @@ export default function TeacherClassStudentsPage() {
           toast({
             title: "File Rỗng hoặc không hợp lệ",
             description: "File Excel không có sheet nào hoặc không có dữ liệu.",
-            variant: "warning",
+            variant: "destructive",
           })
           return
         }

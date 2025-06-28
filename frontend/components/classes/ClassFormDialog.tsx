@@ -38,8 +38,8 @@ const formSchema = z.object({
   tenLop: z.string().min(2, 'Tên lớp phải có ít nhất 2 ký tự').max(100),
   maToChuc: z.number().positive('Vui lòng chọn tổ chức'),
   capHoc: z.string().optional(),
-  namHoc: z.string().optional(),
-  maGiaoVienChuNhiem: z.number().nullable().optional(),
+  nienKhoa: z.string().optional(),
+  giaoVienChuNhiemId: z.number().nullable().optional(),
   moTa: z.string().optional(),
   trangThai: z.boolean().optional(),
 });
@@ -67,8 +67,8 @@ export function ClassFormDialog({
       tenLop: '',
       maToChuc: 0,
       capHoc: '',
-      namHoc: '',
-      maGiaoVienChuNhiem: null,
+      nienKhoa: '',
+      giaoVienChuNhiemId: null,
       moTa: '',
       trangThai: true,
     },
@@ -80,9 +80,9 @@ export function ClassFormDialog({
         tenLop: classItem.tenLop,
         maToChuc: classItem.maToChuc,
         capHoc: classItem.capHoc || '',
-        namHoc: classItem.namHoc || '',
-        maGiaoVienChuNhiem: classItem.maGiaoVienChuNhiem || null,
-        moTa: classItem.moTa || '',
+        nienKhoa: classItem.nienKhoa || '',
+        giaoVienChuNhiemId: classItem.giaoVienChuNhiemId ?? null,
+        moTa: '', // Nếu cần map classItem.moTa thì sửa lại ở đây
         trangThai: classItem.trangThai,
       });
     } else {
@@ -90,8 +90,8 @@ export function ClassFormDialog({
         tenLop: '',
         maToChuc: 0,
         capHoc: '',
-        namHoc: '',
-        maGiaoVienChuNhiem: null,
+        nienKhoa: '',
+        giaoVienChuNhiemId: null,
         moTa: '',
         trangThai: true,
       });
@@ -100,26 +100,27 @@ export function ClassFormDialog({
 
   const handleSubmit = (values: z.infer<typeof formSchema>) => {
     if (classItem) {
-      // Update - chỉ gửi các field đã thay đổi
       const updateData: ClassUpdate = {};
       if (values.tenLop !== classItem.tenLop) updateData.tenLop = values.tenLop;
       if (values.capHoc !== classItem.capHoc) updateData.capHoc = values.capHoc;
-      if (values.namHoc !== classItem.namHoc) updateData.namHoc = values.namHoc;
-      if (values.maGiaoVienChuNhiem !== classItem.maGiaoVienChuNhiem) {
-        updateData.maGiaoVienChuNhiem = values.maGiaoVienChuNhiem || undefined;
+      // Sửa lỗi: sử dụng namHoc thay vì nienKhoa cho ClassUpdate
+      if (values.nienKhoa !== classItem.nienKhoa) updateData.namHoc = values.nienKhoa;
+      if (values.giaoVienChuNhiemId !== classItem.giaoVienChuNhiemId) {
+        updateData.maGiaoVienChuNhiem = values.giaoVienChuNhiemId || undefined;
       }
-      if (values.moTa !== classItem.moTa) updateData.moTa = values.moTa;
+      if (values.moTa !== '') updateData.moTa = values.moTa;
       if (values.trangThai !== classItem.trangThai) updateData.trangThai = values.trangThai;
-      
-      onSubmit(updateData);
+
+      if (Object.keys(updateData).length > 0) {
+        onSubmit(updateData);
+      }
     } else {
-      // Create
       const createData: ClassCreate = {
         tenLop: values.tenLop,
         maToChuc: values.maToChuc,
         capHoc: values.capHoc || undefined,
-        namHoc: values.namHoc || undefined,
-        maGiaoVienChuNhiem: values.maGiaoVienChuNhiem || undefined,
+        namHoc: values.nienKhoa || undefined,
+        maGiaoVienChuNhiem: values.giaoVienChuNhiemId || undefined,
         moTa: values.moTa || undefined,
       };
       onSubmit(createData);
@@ -215,10 +216,10 @@ export function ClassFormDialog({
 
               <FormField
                 control={form.control}
-                name="namHoc"
+                name="nienKhoa"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Năm học</FormLabel>
+                    <FormLabel>Niên khóa</FormLabel>
                     <FormControl>
                       <Input placeholder="2023-2024" {...field} />
                     </FormControl>
@@ -230,7 +231,7 @@ export function ClassFormDialog({
 
             <FormField
               control={form.control}
-              name="maGiaoVienChuNhiem"
+              name="giaoVienChuNhiemId"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Giáo viên chủ nhiệm</FormLabel>
@@ -238,7 +239,7 @@ export function ClassFormDialog({
                     onValueChange={(value) =>
                       field.onChange(value === 'none' ? null : Number(value))
                     }
-                    value={field.value?.toString() || 'none'}
+                    value={field.value ? field.value.toString() : 'none'}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -294,7 +295,7 @@ export function ClassFormDialog({
                     </div>
                     <FormControl>
                       <Switch
-                        checked={field.value}
+                        checked={!!field.value}
                         onCheckedChange={field.onChange}
                       />
                     </FormControl>

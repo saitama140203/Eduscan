@@ -46,16 +46,7 @@ export const omrApi = {
   /**
    * Lưu một batch kết quả đã chấm vào database
    */
-  saveResults: async (examId: number, results: any[]) => {
-    const payload = {
-      exam_id: examId,
-      results: results.map(r => ({
-        student_answers: r.answers,
-        sbd: r.sbd,
-        filename: r.filename,
-        annotated_image_path: r.annotated_image_path // Cần đảm bảo trường này tồn tại
-      }))
-    };
+  saveResults: async (payload: { exam_id: number; results: any[] }) => {
     return apiRequest(`/omr/save-results`, {
       method: 'POST',
       body: payload,

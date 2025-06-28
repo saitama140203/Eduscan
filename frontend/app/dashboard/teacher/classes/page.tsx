@@ -58,13 +58,9 @@ export default function TeacherClassesPage() {
 
   // Tổng hợp stats (fallback nếu API chưa trả đủ)
   const totalStudents = filteredClasses.reduce((sum, cls) => sum + (cls.total_students || 0), 0);
-  const totalExams = filteredClasses.reduce((sum, cls) => sum + (cls["soLuongBaiThi"] || 0), 0);
-  const pendingSheets = filteredClasses.reduce((sum, cls) => sum + (cls["soLuongPhieuChuaQuet"] || 0), 0);
-  const avgScore = filteredClasses.length > 0
-    ? (filteredClasses.reduce((sum, cls) => sum + (cls["diemTrungBinh"] || 0), 0) / filteredClasses.length).toFixed(1)
-    : 0;
-
-  // Handlers
+  const totalExams = filteredClasses.reduce((sum, cls) => sum + (cls.total_exams || 0), 0);
+  const pendingSheets = 0; // Tạm thời hardcode, sẽ cập nhật khi có API
+  const avgScore = 0; // Tạm thời hardcode, sẽ cập nhật khi có APIdlers
   const handleViewClass = (classId: number) => router.push(`/dashboard/teacher/classes/${classId}`);
   const handleViewStudents = (classId: number) => router.push(`/dashboard/teacher/classes/${classId}/students`);
   const handleViewExams = (classId: number) => router.push(`/dashboard/teacher/classes/${classId}/exams`);
@@ -72,6 +68,9 @@ export default function TeacherClassesPage() {
   const handleScanAnswers = () => router.push("/dashboard/teacher/scan");
 
   // Loading UI
+  const handleDeleteClass = async (classId: number) => {
+    // ... existing code ...
+  };
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-96">
@@ -213,9 +212,7 @@ export default function TeacherClassesPage() {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Tất cả cấp</SelectItem>
-                <SelectItem value="Lớp 10">Lớp 10</SelectItem>
-                <SelectItem value="Lớp 11">Lớp 11</SelectItem>
-                <SelectItem value="Lớp 12">Lớp 12</SelectItem>
+ 
               </SelectContent>
             </Select>
             <Select value={selectedStatus} onValueChange={setSelectedStatus}>
@@ -242,24 +239,21 @@ export default function TeacherClassesPage() {
                 <Badge variant="secondary">{classItem.capHoc}</Badge>
               </div>
               <CardDescription>
-                Năm học {classItem.namHoc}
+                Năm học {classItem.nienKhoa || 'N/A'}
               </CardDescription>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Stats - nếu thiếu có thể để trống hoặc cập nhật sau */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="text-center p-3 bg-blue-50 rounded-lg">
-                  <div className="text-2xl font-bold text-blue-600">
-                    {classItem.total_students || 0}
-                  </div>
-                  <div className="text-sm text-blue-600">Học sinh</div>
+            <CardContent className="grid grid-cols-3 gap-2">
+              <div className="text-center p-3 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">
+                  {classItem.nienKhoa || 'N/A'}
                 </div>
-                <div className="text-center p-3 bg-purple-50 rounded-lg">
-                  <div className="text-2xl font-bold text-purple-600">
-                    {classItem["soLuongBaiThi"] || 0}
-                  </div>
-                  <div className="text-sm text-purple-600">Bài kiểm tra</div>
+                <div className="text-sm text-blue-600">Năm học</div>
+              </div>
+              <div className="text-center p-3 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">
+                  {classItem.total_exams || 0}
                 </div>
+                <div className="text-sm text-purple-600">Bài kiểm tra</div>
               </div>
               {/* Các thống kê khác (nếu có) ... */}
               <div className="grid grid-cols-2 gap-2 pt-2">
@@ -287,7 +281,7 @@ export default function TeacherClassesPage() {
                   onClick={() => handleViewExams(classItem.maLopHoc)}
                   className="text-xs"
                 >
-                  📝 Bài thi ({classItem["soLuongBaiThi"] || 0})
+                  📝 Bài thi ({classItem.total_exams || 0})
                 </Button>
               </div>
             </CardContent>

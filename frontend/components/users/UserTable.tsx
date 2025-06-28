@@ -1,8 +1,12 @@
-import { useUsers } from "@/hooks/useUsers";
+import { useUsers, useUsersByOrganization } from "@/hooks/useUsers";
 import { useDeleteUser } from "@/hooks/useDeleteUser";
 
 export default function UserTable({ orgId }: { orgId?: number }) {
-  const { data: users, isLoading } = useUsers(orgId);
+  const queryResult = orgId 
+    ? useUsersByOrganization(orgId) 
+    : useUsers();
+  
+  const { data: users, isLoading } = queryResult;
   const delUser = useDeleteUser();
 
   if (isLoading) return <div>Loading...</div>;
@@ -17,14 +21,14 @@ export default function UserTable({ orgId }: { orgId?: number }) {
         </tr>
       </thead>
       <tbody>
-        {users?.map(u => (
+        {users?.data?.map(u => (
           <tr key={u.maNguoiDung}>
             <td>{u.email}</td>
             <td>{u.hoTen}</td>
             <td>{u.vaiTro}</td>
             <td>
               <button onClick={() => {/* Điều hướng sang edit */}}>Sửa</button>
-              <button onClick={() => delUser.mutate(u.maNguoiDung)}>Xoá</button>
+              <button onClick={() => delUser.mutate(u.maNguoiDung.toString())}>Xoá</button>
             </td>
           </tr>
         ))}

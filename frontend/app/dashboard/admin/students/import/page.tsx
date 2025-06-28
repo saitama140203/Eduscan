@@ -274,7 +274,7 @@ export default function StudentImportPage() {
               <div className="space-y-2">
                 <h4 className="font-semibold text-red-600">Danh sách lỗi:</h4>
                 <div className="max-h-40 overflow-y-auto space-y-1">
-                  {importResult.errors.map((error, index) => (
+                  {importResult.errors.map((error: string, index: number) => (
                     <Badge key={index} variant="destructive" className="block w-fit">
                       {error}
                     </Badge>

@@ -56,7 +56,7 @@ import { useToast } from "@/hooks/use-toast";
 
 interface AdvancedFilters {
   capHoc?: string;
-  namHoc?: string;
+  nienKhoa?: string;
   trangThai?: boolean;
   dateFrom?: string;
   dateTo?: string;
@@ -111,7 +111,7 @@ export default function AdminClassesPage() {
     sort_by: sortBy,
     sort_order: sortOrder,
     cap_hoc: selectedGrade !== "all" ? selectedGrade : undefined,
-    nam_hoc: selectedYear !== "all" ? selectedYear : undefined,
+    nien_khoa: selectedYear !== "all" ? selectedYear : undefined,
     trang_thai: selectedStatus !== "all" ? selectedStatus === "active" : undefined,
     org_id: selectedOrg !== "all" ? parseInt(selectedOrg) : undefined,
     ...advancedFilters
@@ -148,7 +148,7 @@ export default function AdminClassesPage() {
     });
 
   // Lấy danh sách năm học
-  const yearOptions = Array.from(new Set(classes.map((cls: Class) => cls.namHoc).filter(Boolean))) as string[];
+  const yearOptions = Array.from(new Set(classes.map((cls: Class) => cls.nienKhoa).filter(Boolean))) as string[];
 
   // Lọc dữ liệu
   const filteredClasses = classes.filter((classItem: Class) => {
@@ -158,7 +158,7 @@ export default function AdminClassesPage() {
     const matchesStatus = selectedStatus === "all"
       || (selectedStatus === "active" && classItem.trangThai)
       || (selectedStatus === "inactive" && !classItem.trangThai);
-    const matchesYear = selectedYear === "all" || (classItem.namHoc === selectedYear);
+    const matchesYear = selectedYear === "all" || (classItem.nienKhoa === selectedYear);
     return matchesSearch && matchesGrade && matchesOrg && matchesStatus && matchesYear;
   });
 
@@ -722,7 +722,7 @@ export default function AdminClassesPage() {
                     <div className="flex-1">
                 <CardTitle className="text-xl">{classItem.tenLop}</CardTitle>
                       <CardDescription className="mt-1">
-                        Năm học {classItem.namHoc || "N/A"} • 
+                        Năm học {classItem.nienKhoa || "N/A"} • 
                         Cấp: <span className="font-medium">{classItem.capHoc || "N/A"}</span>
                         {classItem.tenToChuc && (
                           <> • Tổ chức: <span className="font-medium">{classItem.tenToChuc}</span></>

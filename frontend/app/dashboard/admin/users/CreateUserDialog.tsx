@@ -65,7 +65,7 @@ export function CreateUserDialog({
   // Fetch organizations
   const { data: orgs = [] } = useQuery({
     queryKey: ["organizations"],
-    queryFn: () => organizationsApi.getOrganizations()
+    queryFn: () => organizationsApi.getAll()
   })
 
   // Mutation to create user
@@ -194,8 +194,9 @@ export function CreateUserDialog({
       const file = e.dataTransfer.files[0]
       if (file.type.startsWith('image/')) {
         const syntheticEvent = {
-          target: { files: [file] }
-        } as React.ChangeEvent<HTMLInputElement>
+          target: { files: [file] as unknown as FileList, value: '' },
+          currentTarget: { files: [file] as unknown as FileList, value: '' },
+        } as unknown as React.ChangeEvent<HTMLInputElement>
         onFileChange(syntheticEvent)
       }
     }

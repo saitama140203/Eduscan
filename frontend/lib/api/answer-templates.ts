@@ -257,8 +257,8 @@ export const answerTemplatesApi = {
   },
 
   async uploadFile(id: number, file: File, onProgress?: (progress: number) => void): Promise<any> {
-    const formData = new FormData();
-    formData.append('file', file);
+      const formData = new FormData();
+      formData.append('file', file);
 
     // Use apiRequest for upload, but without progress callback support for now
     const response = await apiRequest(`/answer-templates/${id}/upload`, {
@@ -288,11 +288,11 @@ export const answerTemplatesApi = {
       // Handle blob response if needed
       if (response instanceof Blob) {
         const downloadUrl = window.URL.createObjectURL(response);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = `template-${id}.pdf`;
-        a.click();
-        window.URL.revokeObjectURL(downloadUrl);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `template-${id}.pdf`;
+      a.click();
+      window.URL.revokeObjectURL(downloadUrl);
       }
     } catch (error) {
       console.error('Failed to download file:', error);
@@ -340,39 +340,6 @@ export const answerTemplatesApi = {
       return false;
     }
   },
-
-  processOmrImages: async (examId: number, templateId: number, files: File[], options?: any): Promise<any> => {
-    const formData = new FormData();
-    formData.append('exam_id', examId.toString());
-
-    files.forEach(file => {
-      formData.append('images', file, file.name);
-    });
-
-    if (options) {
-      if (options.yolo_model) formData.append('yolo_model', options.yolo_model);
-      if (options.confidence) formData.append('confidence', options.confidence.toString());
-      if (options.auto_align !== undefined) formData.append('auto_align', String(options.auto_align));
-    }
-    
-    // Try test endpoint first for development
-    try {
-      const response = await apiRequest(`/answer-templates/${templateId}/process-omr-test`, {
-        method: 'POST',
-        body: formData,
-      });
-      return response;
-    } catch (error) {
-      // Fallback to real endpoint if test fails
-      console.warn('Test endpoint failed, trying real endpoint:', error);
-      
-      const response = await apiRequest(`/answer-templates/${templateId}/process-omr`, {
-        method: 'POST',
-        body: formData,
-      });
-      return response;
-    }
-  }
 };
 
 export const answerTemplateApi = answerTemplatesApi;

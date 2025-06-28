@@ -86,15 +86,19 @@ export default function OrganizationsPage() {
     const byType: Record<string, number> = {}
     ORG_TYPES.forEach(type => byType[type.value] = 0)
     organizations.forEach(org => {
-      if (byType[org.type] !== undefined) byType[org.type] += 1
+      if (org.type && byType[org.type] !== undefined) {
+        byType[org.type] += 1
+      }
     })
     
     // Calculate recent additions (last 30 days)
     const thirtyDaysAgo = new Date()
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-    const recentCount = organizations.filter(org => 
-      new Date(org.created_at || org.updated_at) > thirtyDaysAgo
-    ).length
+    const recentCount = organizations.filter(org => {
+      const orgDate = org.created_at || org.updated_at;
+      if (!orgDate) return false;
+      return new Date(orgDate) > thirtyDaysAgo
+    }).length
     
     return { total, byType, recentCount }
   }, [organizations])
@@ -104,7 +108,7 @@ export default function OrganizationsPage() {
     setIsLoading(true)
     try {
       const data = await organizationsApi.getAll()
-      setOrganizations(Array.isArray(data) ? data : data.organizations || [])
+      setOrganizations(data)
     } catch {
       toast({ 
         title: "Lỗi kết nối", 
@@ -304,12 +308,12 @@ export default function OrganizationsPage() {
           bValue = b.type || ""
           break
         case "updated_at":
-          aValue = new Date(a.updated_at).getTime()
-          bValue = new Date(b.updated_at).getTime()
+          aValue = new Date(a.updated_at ?? 0).getTime()
+          bValue = new Date(b.updated_at ?? 0).getTime()
           break
         case "created_at":
-          aValue = new Date(a.created_at || a.updated_at).getTime()
-          bValue = new Date(b.created_at || b.updated_at).getTime()
+          aValue = a.updated_at ? new Date(a.updated_at).getTime() : 0
+          bValue = b.updated_at ? new Date(b.updated_at).getTime() : 0          
           break
         default:
           return 0
@@ -421,14 +425,14 @@ export default function OrganizationsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
-      <LogoCropDialog
+      {cropSrc && <LogoCropDialog
         open={showCrop}
         setOpen={setShowCrop}
         cropSrc={cropSrc}
         cropperRef={cropperRef}
         uploading={uploading}
         handleCropAndUpload={handleCropAndUpload}
-      />
+      />}
       
       <div className="container mx-auto py-8 max-w-7xl space-y-8">
         {/* Enhanced Header */}
@@ -839,7 +843,12 @@ export default function OrganizationsPage() {
           setOpen={setIsCreateDialogOpen}
           formData={formData}
           onInputChange={(field, value) => setFormData(prev => ({ ...prev, [field]: value }))}
-          onFileChange={e => handleFileChange(e, "create")}
+          onFileChange={(file) => {
+            const fakeEvent = {
+              target: { files: [file] }
+            } as unknown as React.ChangeEvent<HTMLInputElement>
+            handleFileChange(fakeEvent, "create")
+          }}
           uploading={uploading}
           onCreate={handleCreateOrg}
           loading={false}

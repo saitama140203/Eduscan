@@ -28,7 +28,7 @@ interface EditOrgDialogProps {
     name?: string
     address?: string
     type?: string
-    logo_url?: string
+    logo_url?: string | null
   }
   onInputChange: (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => void
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -112,7 +112,7 @@ const EnhancedLogoUploader = ({
   uploading, 
   onFileChange 
 }: {
-  logo_url?: string
+  logo_url?: string | null
   uploading: boolean
   onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void
 }) => {

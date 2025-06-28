@@ -65,7 +65,7 @@ export default function StudentsPage() {
       })
       
       // Extract unique class names
-      const uniqueClasses = [...new Set(studentsData.map((s: Student) => s.tenLop).filter(Boolean))]
+      const uniqueClasses = [...new Set(studentsData.map((s: Student) => s.tenLop).filter(Boolean))] as string[];
       setClasses(uniqueClasses)
       
     } catch (error) {

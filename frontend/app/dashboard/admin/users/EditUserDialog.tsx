@@ -10,6 +10,7 @@ import { useMutation } from "@tanstack/react-query"
 import { userApi } from "@/lib/api/users"
 import { useToast } from "@/components/ui/use-toast"
 import { rolesMap } from "@/lib/constants"
+import { UserUpdate } from "@/lib/api/users"
 
 // Cloudinary config
 const CLOUDINARY_UPLOAD_URL = "https://api.cloudinary.com/v1_1/eduscan/image/upload"
@@ -37,6 +38,17 @@ function InputField({
   error,
   onChange, 
   disabled = false 
+}: {
+  name: string;
+  label: string;
+  placeholder: string;
+  required?: boolean;
+  type?: string;
+  icon?: React.ElementType;
+  value?: string | number;
+  error?: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="space-y-2">
@@ -84,6 +96,14 @@ function AvatarUploader({
   handleDrag, 
   handleDrop, 
   onFileChange 
+}: {
+  url?: string | null;
+  isLoading: boolean;
+  fileInputRef: React.RefObject<HTMLInputElement>;
+  dragActive: boolean;
+  handleDrag: (e: React.DragEvent) => void;
+  handleDrop: (e: React.DragEvent) => void;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
 }) {
   return (
     <div className="flex items-center gap-6">
@@ -191,7 +211,7 @@ export function EditUserDialog({
   
   // Update user mutation
   const updateUserMutation = useMutation({
-    mutationFn: (userData: Partial<User>) => 
+    mutationFn: (userData: UserUpdate) => 
       userApi.updateUser(user.maNguoiDung, userData),
     onSuccess: () => {
       toast({ title: "Cập nhật người dùng thành công!" })

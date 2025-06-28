@@ -55,6 +55,7 @@ export default function UsersPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [roleFilter, setRoleFilter] = useState("all");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [organizationFilter, setOrganizationFilter] = useState("all");
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showDeactivateDialog, setShowDeactivateDialog] = useState(false);
@@ -77,8 +78,8 @@ export default function UsersPage() {
   // Computed values
   const stats = useMemo(() => getStats(), [getStats]);
   const filteredUsersList = useMemo(() => 
-    filterUsers(searchTerm, roleFilter, statusFilter), 
-    [filterUsers, searchTerm, roleFilter, statusFilter]
+    filterUsers(searchTerm, roleFilter, statusFilter, organizationFilter), 
+    [searchTerm, roleFilter, statusFilter, organizationFilter, filterUsers]
   );
 
   // Handlers
@@ -264,7 +265,7 @@ export default function UsersPage() {
             <Crown className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{stats.admin}</div>
+            <div className="text-2xl font-bold text-red-600">{stats.admins}</div>
           </CardContent>
         </Card>
         
@@ -274,7 +275,7 @@ export default function UsersPage() {
             <ShieldCheck className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-blue-600">{stats.manager}</div>
+            <div className="text-2xl font-bold text-blue-600">{stats.managers}</div>
           </CardContent>
         </Card>
         
@@ -284,7 +285,7 @@ export default function UsersPage() {
             <GraduationCap className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-green-600">{stats.teacher}</div>
+            <div className="text-2xl font-bold text-green-600">{stats.teachers}</div>
           </CardContent>
         </Card>
       </div>

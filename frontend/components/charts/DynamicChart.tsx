@@ -1,25 +1,26 @@
 "use client"
 
-import { useState, useEffect } from 'react'
-import dynamic from 'next/dynamic'
+import { useState, useEffect } from "react"
+import dynamic from "next/dynamic"
+import {
+  Line,
+  Bar,
+  Pie,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts"
 
-// Dynamic imports cho các thành phần Recharts
-const LineChart = dynamic(() => import('recharts').then(mod => mod.LineChart), { ssr: false })
-const BarChart = dynamic(() => import('recharts').then(mod => mod.BarChart), { ssr: false })
-const PieChart = dynamic(() => import('recharts').then(mod => mod.PieChart), { ssr: false })
-const AreaChart = dynamic(() => import('recharts').then(mod => mod.AreaChart), { ssr: false })
-const Line = dynamic(() => import('recharts').then(mod => mod.Line), { ssr: false })
-const Bar = dynamic(() => import('recharts').then(mod => mod.Bar), { ssr: false })
-const Pie = dynamic(() => import('recharts').then(mod => mod.Pie), { ssr: false })
-const Area = dynamic(() => import('recharts').then(mod => mod.Area), { ssr: false })
-const XAxis = dynamic(() => import('recharts').then(mod => mod.XAxis), { ssr: false })
-const YAxis = dynamic(() => import('recharts').then(mod => mod.YAxis), { ssr: false })
-const CartesianGrid = dynamic(() => import('recharts').then(mod => mod.CartesianGrid), { ssr: false })
-const Tooltip = dynamic(() => import('recharts').then(mod => mod.Tooltip), { ssr: false })
-const Legend = dynamic(() => import('recharts').then(mod => mod.Legend), { ssr: false })
-const ResponsiveContainer = dynamic(() => import('recharts').then(mod => mod.ResponsiveContainer), { ssr: false })
+const LineChart = dynamic(() => import("recharts").then(mod => mod.LineChart), { ssr: false })
+const BarChart = dynamic(() => import("recharts").then(mod => mod.BarChart), { ssr: false })
+const PieChart = dynamic(() => import("recharts").then(mod => mod.PieChart), { ssr: false })
+const AreaChart = dynamic(() => import("recharts").then(mod => mod.AreaChart), { ssr: false })
 
-type ChartType = 'line' | 'bar' | 'pie' | 'area'
+type ChartType = "line" | "bar" | "pie" | "area"
 
 interface DynamicChartProps {
   type: ChartType
@@ -35,11 +36,11 @@ interface DynamicChartProps {
 }
 
 export default function DynamicChart({
-  type = 'line',
+  type = "line",
   data = [],
-  width = '100%',
+  width = "100%",
   height = 300,
-  xDataKey = 'name',
+  xDataKey = "name",
   dataKeys = [],
   showLegend = true,
   showTooltip = true,
@@ -52,11 +53,10 @@ export default function DynamicChart({
     setIsClient(true)
   }, [])
 
-  // Hiển thị placeholder khi đang tải hoặc ở server-side
   if (!isClient || !data.length) {
     return (
-      <div 
-        style={{ width, height }} 
+      <div
+        style={{ width, height }}
         className="flex items-center justify-center bg-gray-50 rounded-md"
       >
         <div className="text-center">
@@ -67,83 +67,100 @@ export default function DynamicChart({
     )
   }
 
-  // Render chart tương ứng với type
+  // Tạo chart đúng type, nếu không đúng thì để undefined
+  let chart: React.ReactElement | undefined
+  if (type === "line") {
+    chart = (
+      <LineChart data={data}>
+        {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+        <XAxis dataKey={xDataKey} />
+        <YAxis />
+        {showTooltip && <Tooltip />}
+        {showLegend && <Legend />}
+        {dataKeys.map((item, index) => (
+          <Line
+            key={index}
+            type="monotone"
+            dataKey={item.key}
+            name={item.name || item.key}
+            stroke={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
+          />
+        ))}
+      </LineChart>
+    )
+  } else if (type === "bar") {
+    chart = (
+      <BarChart data={data}>
+        {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+        <XAxis dataKey={xDataKey} />
+        <YAxis />
+        {showTooltip && <Tooltip />}
+        {showLegend && <Legend />}
+        {dataKeys.map((item, index) => (
+          <Bar
+            key={index}
+            dataKey={item.key}
+            name={item.name || item.key}
+            fill={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
+          />
+        ))}
+      </BarChart>
+    )
+  } else if (type === "pie") {
+    chart = (
+      <PieChart>
+        {showTooltip && <Tooltip />}
+        {showLegend && <Legend />}
+        <Pie
+          data={data}
+          nameKey={xDataKey}
+          dataKey={dataKeys[0]?.key || ""}
+          cx="50%"
+          cy="50%"
+          outerRadius={80}
+          label
+        />
+      </PieChart>
+    )
+  } else if (type === "area") {
+    chart = (
+      <AreaChart data={data}>
+        {showGrid && <CartesianGrid strokeDasharray="3 3" />}
+        <XAxis dataKey={xDataKey} />
+        <YAxis />
+        {showTooltip && <Tooltip />}
+        {showLegend && <Legend />}
+        {dataKeys.map((item, index) => (
+          <Area
+            key={index}
+            type="monotone"
+            dataKey={item.key}
+            name={item.name || item.key}
+            fill={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
+            stroke={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
+          />
+        ))}
+      </AreaChart>
+    )
+  }
+
+  // Nếu không có chart, trả fallback (hoặc bạn có thể throw error tuỳ ý)
+  if (!chart) {
+    return (
+      <div
+        style={{ width, height }}
+        className="flex items-center justify-center bg-gray-50 rounded-md"
+      >
+        <p className="text-sm text-gray-500">Không có biểu đồ phù hợp.</p>
+      </div>
+    )
+  }
+
   return (
     <div className={className}>
-    <ResponsiveContainer width={width} height={height}>
-      {type === 'line' && (
-        <LineChart data={data}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey={xDataKey} />
-          <YAxis />
-          {showTooltip && <Tooltip />}
-          {showLegend && <Legend />}
-          {dataKeys.map((item, index) => (
-            <Line
-              key={index}
-              type="monotone"
-              dataKey={item.key}
-              name={item.name || item.key}
-              stroke={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
-            />
-          ))}
-        </LineChart>
-      )}
-
-      {type === 'bar' && (
-        <BarChart data={data}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey={xDataKey} />
-          <YAxis />
-          {showTooltip && <Tooltip />}
-          {showLegend && <Legend />}
-          {dataKeys.map((item, index) => (
-            <Bar
-              key={index}
-              dataKey={item.key}
-              name={item.name || item.key}
-              fill={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
-            />
-          ))}
-        </BarChart>
-      )}
-
-      {type === 'pie' && (
-        <PieChart>
-          {showTooltip && <Tooltip />}
-          {showLegend && <Legend />}
-          <Pie
-            data={data}
-            nameKey={xDataKey}
-            dataKey={dataKeys[0]?.key || ''}
-            cx="50%"
-            cy="50%"
-            outerRadius={80}
-            label
-          />
-        </PieChart>
-      )}
-
-      {type === 'area' && (
-        <AreaChart data={data}>
-          {showGrid && <CartesianGrid strokeDasharray="3 3" />}
-          <XAxis dataKey={xDataKey} />
-          <YAxis />
-          {showTooltip && <Tooltip />}
-          {showLegend && <Legend />}
-          {dataKeys.map((item, index) => (
-            <Area
-              key={index}
-              type="monotone"
-              dataKey={item.key}
-              name={item.name || item.key}
-              fill={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
-              stroke={item.color || `#${Math.floor(Math.random() * 16777215).toString(16)}`}
-            />
-          ))}
-        </AreaChart>
-      )}
-    </ResponsiveContainer>
+      <ResponsiveContainer width={width} height={height}>
+        {chart}
+      </ResponsiveContainer>
     </div>
   )
 }

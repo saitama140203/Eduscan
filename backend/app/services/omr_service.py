@@ -1033,7 +1033,7 @@ class OMRDatabaseService:
             if save_to_db:
                 await db.commit()
                 logging.info(f"Result for SBD {sbd} saved to database.")
-
+            
             # 6. Trả về kết quả (luôn trả về, dù có lưu hay không)
             result_data = {
                 "success": True,
@@ -1214,3 +1214,56 @@ class OMRDatabaseService:
                 "exam_id": exam_id,
                 "error": str(e)
             } 
+
+    @staticmethod
+    async def backfill_results(
+        db: AsyncSession,
+        exam_id: Optional[int],
+        class_id: Optional[int],
+        dry_run: bool,
+        scanner_user_id: Optional[int]
+    ) -> Tuple[int, List[Dict]]:
+        """
+        Xử lý và chấm lại điểm cho các bài thi đã tồn tại.
+        """
+        if not exam_id and not class_id:
+            raise ValueError("Cần cung cấp ít nhất exam_id hoặc class_id.")
+
+        # Lấy danh sách các phiếu trả lời cần xử lý
+        stmt = select(AnswerSheet).where(AnswerSheet.daXuLyHoanTat == True)
+        if exam_id:
+            stmt = stmt.where(AnswerSheet.maBaiKiemTra == exam_id)
+        if class_id:
+            student_subquery = select(Student.maHocSinh).where(Student.maLopHoc == class_id)
+            stmt = stmt.where(AnswerSheet.maHocSinh.in_(student_subquery))
+        
+        answer_sheets = (await db.execute(stmt)).scalars().all()
+        
+        updated_count = 0
+        errors = []
+        
+        for sheet in answer_sheets:
+            try:
+                if not sheet.cauTraLoiJson or not sheet.sobaodanh:
+                    errors.append({"answer_sheet_id": sheet.maPhieuTraLoi, "error": "Thiếu dữ liệu câu trả lời hoặc SBD."})
+                    continue
+
+                # Gọi lại hàm chấm điểm, nhưng chỉ lưu nếu dry_run=False
+                await OMRDatabaseService.score_omr_result(
+                    db=db,
+                    exam_id=sheet.maBaiKiemTra,
+                    student_answers=sheet.cauTraLoiJson,
+                    sbd=sheet.sobaodanh,
+                    image_path=sheet.urlHinhAnh,
+                    scanner_user_id=scanner_user_id,
+                    annotated_image_path=sheet.urlHinhAnhXuLy, # Giả sử đây là ảnh đã xử lý
+                    save_to_db=not dry_run
+                )
+                updated_count += 1
+            except Exception as e:
+                errors.append({"answer_sheet_id": sheet.maPhieuTraLoi, "error": str(e)})
+
+        if dry_run:
+            await db.rollback() # Hoàn tác tất cả thay đổi nếu là dry run
+        
+        return updated_count, errors 

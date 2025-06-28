@@ -80,7 +80,7 @@ export default function ExamDetailPage() {
 
   const handleStatusChange = async (newStatus: 'nhap' | 'xuatBan' | 'dongDaChAm') => {
     updateExamMutation.mutate({
-      id: examId,
+      examId: examId,
       data: { trangThai: newStatus }
     })
   }

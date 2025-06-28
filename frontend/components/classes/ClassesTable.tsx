@@ -62,7 +62,8 @@ export function ClassesTable({
               <TableRow key={classItem.maLopHoc}>
                 <TableCell className="font-medium">{classItem.tenLop}</TableCell>
                 <TableCell>{classItem.capHoc || '-'}</TableCell>
-                <TableCell>{classItem.namHoc || '-'}</TableCell>
+                {/* Sửa lỗi: sử dụng nienKhoa thay vì namHoc */}
+                <TableCell>{classItem.nienKhoa || '-'}</TableCell>
                 <TableCell>{classItem.tenGiaoVienChuNhiem || '-'}</TableCell>
                 <TableCell className="text-center">
                   {classItem.total_students || 0}
@@ -73,9 +74,11 @@ export function ClassesTable({
                   </Badge>
                 </TableCell>
                 <TableCell>
-                  {format(new Date(classItem.thoiGianTao), 'dd/MM/yyyy', {
-                    locale: vi,
-                  })}
+                  {classItem.thoiGianTao ? 
+                    format(new Date(classItem.thoiGianTao), 'dd/MM/yyyy', {
+                      locale: vi,
+                    }) : '-'
+                  }
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>

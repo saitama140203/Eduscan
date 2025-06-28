@@ -9,6 +9,15 @@ import {
   AlertDialogCancel,
   AlertDialogAction,
 } from "@/components/ui/alert-dialog";
+import { User } from "@/hooks/use-users";
+
+interface DeactivateUserDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  user: User | null;
+  onDeactivate: () => void;
+  loading?: boolean;
+}
 
 export function DeactivateUserDialog({
   open,
@@ -16,7 +25,7 @@ export function DeactivateUserDialog({
   user,
   onDeactivate,
   loading = false,
-}) {
+}: DeactivateUserDialogProps) {
   // Không có user thì không render (tránh lỗi khi user bị null)
   if (!user) return null;
 

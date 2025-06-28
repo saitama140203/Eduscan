@@ -13,6 +13,8 @@ export interface Class {
   thoiGianCapNhat?: string;
   total_students?: number;
   total_exams?: number;
+  tenGiaoVienChuNhiem?: string;
+  tenToChuc?: string;
 }
 
 export interface ClassCreate {

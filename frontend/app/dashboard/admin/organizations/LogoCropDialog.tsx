@@ -4,7 +4,16 @@ import { Button } from "@/components/ui/button"
 import Cropper from "react-cropper"
 import "cropperjs/dist/cropper.css"
 
-export function LogoCropDialog({ open, setOpen, cropSrc, cropperRef, uploading, handleCropAndUpload }) {
+interface LogoCropDialogProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  cropSrc?: string;
+  cropperRef: React.RefObject<any>;
+  uploading: boolean;
+  handleCropAndUpload: () => void;
+}
+
+export function LogoCropDialog({ open, setOpen, cropSrc, cropperRef, uploading, handleCropAndUpload }: LogoCropDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-lg">

@@ -319,7 +319,13 @@ const UploadFileDialog: React.FC<UploadFileDialogProps> = ({
               <AlertDescription>
                 <div className="space-y-1">
                   <p className="font-medium">File hiện tại:</p>
-                  <p>{currentFile.tenFileGoc} ({formatFileSize(currentFile.kichThuocFile)})</p>
+                  <p>
+                    {currentFile.tenFileGoc} (
+                      {currentFile.kichThuocFile !== undefined && currentFile.kichThuocFile !== null
+                        ? formatFileSize(currentFile.kichThuocFile)
+                        : 'N/A'}
+                    )
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     Upload file mới sẽ thay thế file hiện tại
                   </p>

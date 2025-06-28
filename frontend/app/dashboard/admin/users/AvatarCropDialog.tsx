@@ -4,7 +4,16 @@ import { Button } from "@/components/ui/button"
 import Cropper from "react-cropper"
 import "cropperjs/dist/cropper.css"
 
-export function AvatarCropDialog({ open, setOpen, cropSrc, cropperRef, uploading, handleCropAndUpload }) {
+interface AvatarCropDialogProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  cropSrc: string;
+  cropperRef: React.RefObject<any>;
+  uploading: boolean;
+  handleCropAndUpload: () => void;
+}
+
+export function AvatarCropDialog({ open, setOpen, cropSrc, cropperRef, uploading, handleCropAndUpload }: AvatarCropDialogProps) {
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogContent className="max-w-md">

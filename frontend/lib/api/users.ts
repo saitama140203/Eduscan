@@ -18,8 +18,9 @@ export interface UserCreate {
   email: string;
   hoTen: string;
   vaiTro: string;
-  password: string;
+  password?: string;
   trangThai?: boolean;
+  urlAnhDaiDien?: string;
 }
 
 export interface UserUpdate {

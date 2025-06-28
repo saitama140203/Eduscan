@@ -27,12 +27,50 @@ import {
   X,
   Info
 } from "lucide-react"
-import { useState, useCallback, useMemo, useEffect, useRef } from "react"
+import { useState, useCallback, useMemo, useEffect, useRef, SetStateAction, FC } from "react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 
-// Enhanced validation schema with async support
-const createValidationSchema = () => ({
+// --- TYPE DEFINITIONS ---
+interface ValidationRule {
+  required?: boolean;
+  minLength?: number;
+  maxLength?: number;
+  pattern?: RegExp;
+  message: {
+    required?: string;
+    minLength?: string;
+    maxLength?: string;
+    pattern?: string;
+  };
+}
+
+type ValidationSchema = Record<string, ValidationRule>;
+type FieldName = keyof ValidationSchema;
+
+interface CreateOrgDialogProps {
+  open: boolean;
+  setOpen: (open: boolean) => void;
+  formData?: Partial<Record<FieldName, any>>;
+  onInputChange: (field: FieldName, value: any) => void;
+  onFileChange: (file: File | null) => void;
+  uploading?: boolean;
+  onCreate: () => Promise<void>;
+  loading?: boolean;
+  duplicateCheck?: ((name: string) => Promise<boolean>) | null;
+}
+
+interface FormFieldProps {
+  label: string;
+  required?: boolean;
+  error?: string | null;
+  children: React.ReactNode;
+  description?: string;
+  icon?: React.ElementType;
+}
+
+// --- VALIDATION LOGIC ---
+const createValidationSchema = (): ValidationSchema => ({
   name: {
     required: true,
     minLength: 2,
@@ -82,87 +120,78 @@ const createValidationSchema = () => ({
       pattern: "Website không hợp lệ (VD: https://example.com)"
     }
   }
-})
+});
 
-// Advanced validation function
-const validateField = (field, value, schema) => {
-  const rules = schema[field]
-  if (!rules) return null
+const validateField = (field: FieldName, value: any, schema: ValidationSchema): string | null => {
+  const rules = schema[field];
+  if (!rules) return null;
+  const trimmedValue = typeof value === 'string' ? value.trim() : value;
 
-  const trimmedValue = typeof value === 'string' ? value.trim() : value
-
-  // Required check
   if (rules.required && (!trimmedValue || trimmedValue === '')) {
-    return rules.message.required
+    return rules.message.required ?? null;
   }
-
-  // Skip other validations if field is empty and not required
   if (!rules.required && (!trimmedValue || trimmedValue === '')) {
-    return null
+    return null;
   }
-
-  // Length validations
   if (rules.minLength && trimmedValue.length < rules.minLength) {
-    return rules.message.minLength
+    return rules.message.minLength ?? null;
   }
-
   if (rules.maxLength && trimmedValue.length > rules.maxLength) {
-    return rules.message.maxLength
+    return rules.message.maxLength ?? null;
   }
-
-  // Pattern validation
   if (rules.pattern && !rules.pattern.test(trimmedValue)) {
-    return rules.message.pattern
+    return rules.message.pattern ?? null;
   }
+  return null;
+};
 
-  return null
-}
 
-const validateForm = (data, schema) => {
-  const errors = {}
-  
-  Object.keys(schema).forEach(field => {
-    const error = validateField(field, data[field], schema)
+const validateForm = (data: Partial<Record<FieldName, any>>, schema: ValidationSchema) => {
+  const errors: Partial<Record<FieldName, string>> = {};
+  (Object.keys(schema) as FieldName[]).forEach(field => {
+    const error = validateField(field, data[field], schema);
     if (error) {
-      errors[field] = error
+      errors[field] = error;
     }
-  })
-  
+  });
   return {
     errors,
     isValid: Object.keys(errors).length === 0
-  }
-}
+  };
+};
 
-// Custom hooks for form management
-const useFormValidation = (formData) => {
-  const schema = useMemo(() => createValidationSchema(), [])
-  const [errors, setErrors] = useState({})
-  const [touched, setTouched] = useState({})
+// --- CUSTOM HOOK ---
+const useFormValidation = (formData: Partial<Record<FieldName, any>>) => {
+  const schema = useMemo(() => createValidationSchema(), []);
+  const [errors, setErrors] = useState<Partial<Record<FieldName, string | null>>>({});
+  const [touched, setTouched] = useState<Partial<Record<FieldName, boolean>>>({});
 
   const validation = useMemo(() => 
     validateForm(formData, schema), 
     [formData, schema]
-  )
+  );
 
-  const validateSingleField = useCallback((field, value) => {
-    const error = validateField(field, value, schema)
-    setErrors(prev => ({ ...prev, [field]: error }))
-    return !error
-  }, [schema])
+  const validateSingleField = useCallback((field: FieldName, value: any) => {
+    const error = validateField(field, value, schema);
+    setErrors(prev => ({ ...prev, [field]: error }));
+    return !error;
+  }, [schema]);
 
-  const markFieldTouched = useCallback((field) => {
-    setTouched(prev => ({ ...prev, [field]: true }))
-  }, [])
+  const markFieldTouched = useCallback((field: FieldName) => {
+    setTouched(prev => ({ ...prev, [field]: true }));
+  }, []);
 
-  const getFieldError = useCallback((field) => {
-    return touched[field] ? errors[field] || validation.errors[field] : null
-  }, [touched, errors, validation.errors])
+  const getFieldError = useCallback((field: FieldName): string | null => {
+    if (touched[field]) {
+      return errors[field] ?? validation.errors[field] ?? null;
+    }
+    return null;
+  }, [touched, errors, validation.errors]);
 
   const resetValidation = useCallback(() => {
-    setErrors({})
-    setTouched({})
-  }, [])
+    setErrors({});
+    setTouched({});
+  }, []);
 
   return {
     errors: validation.errors,
@@ -171,11 +200,11 @@ const useFormValidation = (formData) => {
     validateSingleField,
     markFieldTouched,
     resetValidation
-  }
-}
+  };
+};
 
-// Enhanced Form Field Component
-const FormField = ({ 
+// --- UI COMPONENTS ---
+const FormField: FC<FormFieldProps> = ({ 
   label, 
   required, 
   error, 
@@ -205,7 +234,7 @@ const FormField = ({
       </div>
     )}
   </div>
-)
+);
 
 export function CreateOrgDialog({ 
   open, 
@@ -216,124 +245,120 @@ export function CreateOrgDialog({
   uploading = false, 
   onCreate,
   loading = false,
-  duplicateCheck = null // Optional function to check duplicates
-}) {
-  const formRef = useRef(null)
-  const [step, setStep] = useState(1) // Multi-step form
-  const [preview, setPreview] = useState(false)
-  const [duplicateWarning, setDuplicateWarning] = useState(null)
+  duplicateCheck = null
+}: CreateOrgDialogProps) {
+  const formRef = useRef<HTMLFormElement>(null);
+  const [step, setStep] = useState(1);
+  const [preview, setPreview] = useState(false);
+  const [duplicateWarning, setDuplicateWarning] = useState<string | null>(null);
   
   const {
-    errors,
     isValid,
     getFieldError,
     validateSingleField,
     markFieldTouched,
     resetValidation
-  } = useFormValidation(formData)
+  } = useFormValidation(formData);
 
-  // Auto-save draft (localStorage fallback - using memory instead)
-  const [draftData, setDraftData] = useState(null)
+  const [draftData, setDraftData] = useState<Partial<Record<FieldName, any>> | null>(null);
   
   useEffect(() => {
     if (Object.keys(formData).length > 0) {
-      setDraftData(formData)
+      setDraftData(formData);
     }
-  }, [formData])
+  }, [formData]);
 
-  // Enhanced input change handler with debounced validation
-  const handleInputChange = useCallback((field, value) => {
-    onInputChange(field, value)
+  const handleInputChange = useCallback((field: FieldName, value: any) => {
+    onInputChange(field, value);
     
-    // Real-time validation for certain fields
     if (['name', 'email', 'phone'].includes(field)) {
       setTimeout(() => {
-        validateSingleField(field, value)
-      }, 300) // Debounce
+        validateSingleField(field, value);
+      }, 300);
     }
 
-    // Duplicate check for name field
     if (field === 'name' && duplicateCheck && value.trim().length > 2) {
       const timeoutId = setTimeout(async () => {
         try {
-          const isDuplicate = await duplicateCheck(value.trim())
-          setDuplicateWarning(isDuplicate ? 'Tên tổ chức này có thể đã tồn tại' : null)
+          const isDuplicate = await duplicateCheck(value.trim());
+          setDuplicateWarning(isDuplicate ? 'Tên tổ chức này có thể đã tồn tại' : null);
         } catch (error) {
-          console.error('Duplicate check error:', error)
+          console.error('Duplicate check error:', error);
         }
-      }, 500)
+      }, 500);
       
-      return () => clearTimeout(timeoutId)
+      return () => clearTimeout(timeoutId);
     }
-  }, [onInputChange, validateSingleField, duplicateCheck])
+  }, [onInputChange, validateSingleField, duplicateCheck]);
 
-  // Enhanced form submission with steps
-  const handleSubmit = useCallback(async (e) => {
-    e.preventDefault()
+  // -------------------------
+  // FIXED: handleClose phải khai báo trước khi dùng trong handleSubmit!
+  // -------------------------
+  const handleClose = useCallback(() => {
+    if (!loading && !uploading) {
+      setOpen(false);
+      setTimeout(() => {
+        setStep(1);
+        setPreview(false);
+        setDuplicateWarning(null);
+        resetValidation();
+      }, 150);
+    }
+  }, [setOpen, loading, uploading, resetValidation]);
+
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
     
+    const { errors: finalErrors, isValid: isFinalValid } = validateForm(formData, createValidationSchema());
+
     if (step === 1) {
-      // Validate step 1 fields
-      const step1Fields = ['name', 'address', 'type']
-      const hasStep1Errors = step1Fields.some(field => {
-        markFieldTouched(field)
-        return getFieldError(field)
-      })
+      const step1Fields: FieldName[] = ['name', 'address', 'type'];
+      const hasStep1Errors = step1Fields.some(field => !!finalErrors[field]);
       
+      step1Fields.forEach(field => markFieldTouched(field));
+
       if (!hasStep1Errors) {
-        setStep(2)
-        return
+        setStep(2);
+      } else {
+        toast.error("Vui lòng điền đủ thông tin bắt buộc ở bước 1.");
       }
+      return;
     }
 
     if (step === 2) {
-      if (!isValid) {
-        Object.keys(errors).forEach(field => markFieldTouched(field))
-        toast.error("Vui lòng kiểm tra lại thông tin")
-        return
+      if (!isFinalValid) {
+        Object.keys(finalErrors).forEach(field => markFieldTouched(field as FieldName));
+        toast.error("Vui lòng kiểm tra lại thông tin, một số trường vẫn còn lỗi.");
+        return;
       }
 
       try {
-        await onCreate()
-        toast.success("Tạo tổ chức thành công!")
-        handleClose()
+        await onCreate();
+        toast.success("Tạo tổ chức thành công!");
+        handleClose();
       } catch (error) {
-        console.error('Create organization error:', error)
-        toast.error(error.message || "Có lỗi xảy ra khi tạo tổ chức")
+        console.error('Create organization error:', error);
+        toast.error((error as Error).message || "Có lỗi xảy ra khi tạo tổ chức");
       }
     }
-  }, [step, isValid, errors, onCreate, markFieldTouched, getFieldError])
+  }, [step, formData, onCreate, markFieldTouched, handleClose]);
 
-  // Enhanced dialog close
-  const handleClose = useCallback(() => {
-    if (!loading && !uploading) {
-      setOpen(false)
-      setTimeout(() => {
-        setStep(1)
-        setPreview(false)
-        setDuplicateWarning(null)
-        resetValidation()
-      }, 150)
-    }
-  }, [setOpen, loading, uploading, resetValidation])
-
-  // Step navigation
-  const goToStep = useCallback((targetStep) => {
+  const goToStep = useCallback((targetStep: number) => {
     if (targetStep < step || targetStep === 1) {
-      setStep(targetStep)
+      setStep(targetStep);
     }
-  }, [step])
+  }, [step]);
 
-  // Preview mode
   const togglePreview = useCallback(() => {
-    setPreview(prev => !prev)
-  }, [])
+    setPreview(prev => !prev);
+  }, []);
 
-  // Get organization type details
   const selectedOrgType = useMemo(() => 
     ORG_TYPES.find(type => type.value === formData.type),
     [formData.type]
-  )
-
+  );
+  
+  // --- RENDER FUNCTIONS ---
   const renderStepIndicator = () => (
     <div className="flex items-center justify-center mb-6">
       <div className="flex items-center space-x-4">
@@ -362,7 +387,7 @@ export function CreateOrgDialog({
         ))}
       </div>
     </div>
-  )
+  );
 
   const renderStep1 = () => (
     <div className="space-y-6">
@@ -443,14 +468,8 @@ export function CreateOrgDialog({
             {ORG_TYPES.map((type) => (
               <SelectItem key={type.value} value={type.value}>
                 <div className="flex items-center gap-3">
-                  {type.icon && <span className="text-lg">{type.icon}</span>}
                   <div>
                     <div className="font-medium">{type.label}</div>
-                    {type.description && (
-                      <div className="text-xs text-muted-foreground">
-                        {type.description}
-                      </div>
-                    )}
                   </div>
                 </div>
               </SelectItem>
@@ -459,12 +478,12 @@ export function CreateOrgDialog({
         </Select>
         {selectedOrgType && (
           <Badge variant="secondary" className="mt-2">
-            {selectedOrgType.icon} {selectedOrgType.label}
+            {selectedOrgType.label}
           </Badge>
         )}
       </FormField>
     </div>
-  )
+  );
 
   const renderStep2 = () => (
     <div className="space-y-6">
@@ -563,12 +582,11 @@ export function CreateOrgDialog({
         <LogoUploader
           onFileChange={onFileChange}
           uploading={uploading}
-          currentLogo={formData.logo}
-          disabled={loading}
+          logo_url={formData.logo}
         />
       </FormField>
     </div>
-  )
+  );
 
   const renderPreview = () => (
     <Card className="border-dashed">
@@ -586,7 +604,7 @@ export function CreateOrgDialog({
               <h3 className="text-lg font-semibold">{formData.name}</h3>
               {selectedOrgType && (
                 <Badge variant="outline" className="mt-1">
-                  {selectedOrgType.icon} {selectedOrgType.label}
+                  {selectedOrgType.label}
                 </Badge>
               )}
             </div>
@@ -631,7 +649,7 @@ export function CreateOrgDialog({
         </div>
       </CardContent>
     </Card>
-  )
+  );
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -715,5 +733,5 @@ export function CreateOrgDialog({
         </form>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

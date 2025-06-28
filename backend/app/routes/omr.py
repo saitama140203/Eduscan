@@ -235,7 +235,7 @@ async def batch_process_omr_with_exam(
         # 1. Tạo thư mục lưu trữ vĩnh viễn cho các ảnh đã annotate
         annotated_storage_dir = Path(settings.STORAGE_PATH) / "annotated_scans" / str(exam_id)
         annotated_storage_dir.mkdir(parents=True, exist_ok=True)
-
+        
         # Tạo thư mục tạm
         temp_dir = tempfile.mkdtemp()
         image_paths = []
@@ -382,7 +382,7 @@ async def batch_process_omr_with_exam(
                             if os.path.exists(permanent_annotation_path):
                                 with open(permanent_annotation_path, 'rb') as f:
                                     annotated_images[fname] = base64.b64encode(f.read()).decode()
-                                    
+                            
                         except Exception as e:
                             logging.error(f"Final annotation error for {fname}: {e}")
                 else:
@@ -1000,3 +1000,41 @@ async def save_omr_results(
         })
     else:
         raise HTTPException(status_code=400, detail={"message": "Không có kết quả nào được lưu.", "errors": errors})
+
+class BackfillRequest(BaseModel):
+    exam_id: Optional[int] = None
+    class_id: Optional[int] = None
+    dry_run: bool = True # Mặc định là chạy thử, không ghi vào DB
+
+@router.post("/backfill-results", status_code=202)
+async def backfill_omr_results(
+    request: BackfillRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    Endpoint quản trị để xử lý lại và cập nhật kết quả cho các bài thi đã có.
+    - Cung cấp exam_id để xử lý lại một bài thi cụ thể.
+    - Cung cấp class_id để xử lý lại tất cả bài thi trong một lớp.
+    - dry_run=True: Chạy thử, không lưu vào DB, chỉ trả về kết quả sẽ được cập nhật.
+    - dry_run=False: Chạy thật và cập nhật kết quả vào DB.
+    """
+    if current_user.vaiTro not in ["ADMIN", "MANAGER"]:
+        raise HTTPException(status_code=403, detail="Bạn không có quyền thực hiện hành động này.")
+
+    # Chạy tác vụ nền để không làm block request
+    # NOTE: Cần có một hệ thống background task runner như Celery để tối ưu
+    updated_count, errors = await OMRDatabaseService.backfill_results(
+        db=db,
+        exam_id=request.exam_id,
+        class_id=request.class_id,
+        dry_run=request.dry_run,
+        scanner_user_id=current_user.maNguoiDung
+    )
+
+    return {
+        "message": "Yêu cầu xử lý lại đã được tiếp nhận.",
+        "dry_run": request.dry_run,
+        "processed_count": updated_count,
+        "errors": errors
+    }

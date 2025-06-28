@@ -1,8 +1,15 @@
 "use client"
 
 import { Pencil, UserX, UserCheck } from "lucide-react"
+import { User } from "@/hooks/use-users"
 
-export function UserActionButtons({ user, onEdit, onToggleActive }) {
+interface UserActionButtonsProps {
+  user: User;
+  onEdit: (user: User) => void;
+  onToggleActive: (user: User, active: boolean) => void;
+}
+
+export function UserActionButtons({ user, onEdit, onToggleActive }: UserActionButtonsProps) {
   return (
     <div className="flex space-x-2">
       <button

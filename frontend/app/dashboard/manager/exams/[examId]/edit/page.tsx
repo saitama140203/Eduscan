@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { useExams } from "@/hooks/useExams";
+import { useExam, useUpdateExam } from "@/hooks/useExams";
 import { useAuth } from "@/contexts/authContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,8 +27,8 @@ export default function ManagerEditExamPage() {
   const { user } = useAuth();
   const examId = parseInt(params.examId as string);
 
-  const { data: exam, isLoading, error } = useExams(examId);
-  const { updateExam } = useExams();
+  const { data: exam, isLoading, error } = useExam(examId);
+  const updateExamMutation = useUpdateExam();
 
   const [formData, setFormData] = useState<Partial<ExamUpdate>>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -88,7 +88,7 @@ export default function ManagerEditExamPage() {
     setIsSubmitting(true);
 
     try {
-      await updateExam.mutateAsync({ examId, data: formData });
+      await updateExamMutation.mutateAsync({ examId, data: formData });
       toast.success("Cập nhật bài kiểm tra thành công!");
       router.push(`/dashboard/manager/exams/${examId}`);
     } catch (error: any) {

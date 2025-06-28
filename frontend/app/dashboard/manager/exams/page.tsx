@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useExams } from "@/hooks/useExams";
+import { useExams, useDeleteExam, useUpdateExam } from "@/hooks/useExams";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,8 +22,8 @@ const SUBJECTS = [
 
 const STATUS_OPTIONS = [
   { value: "nhap", label: "Nháp", color: "bg-gray-100 text-gray-800" },
-  { value: "xuat_ban", label: "Xuất bản", color: "bg-blue-100 text-blue-800" },
-  { value: "hoan_thanh", label: "Hoàn thành", color: "bg-green-100 text-green-800" },
+  { value: "xuatBan", label: "Xuất bản", color: "bg-blue-100 text-blue-800" },
+  { value: "dongDaChAm", label: "Hoàn thành", color: "bg-green-100 text-green-800" },
 ];
 
 export default function ManagerExamsPage() {
@@ -32,7 +32,8 @@ export default function ManagerExamsPage() {
   const [subjectFilter, setSubjectFilter] = useState<string>("");
 
   const { data: exams = [], isLoading, error } = useExams();
-  const { deleteExam, updateExamStatus } = useExams();
+  const deleteExamMutation = useDeleteExam();
+  const updateExamMutation = useUpdateExam();
 
   // Filter exams based on search and filters
   const filteredExams = exams.filter((exam) => {
@@ -48,13 +49,13 @@ export default function ManagerExamsPage() {
   const stats = {
     total: exams.length,
     draft: exams.filter(e => e.trangThai === "nhap").length,
-    published: exams.filter(e => e.trangThai === "xuat_ban").length,
-    completed: exams.filter(e => e.trangThai === "hoan_thanh").length,
+    published: exams.filter(e => e.trangThai === "xuatBan").length,
+    completed: exams.filter(e => e.trangThai === "dongDaChAm").length,
   };
 
-  const handleStatusChange = async (examId: number, newStatus: string) => {
+  const handleStatusChange = async (examId: number, newStatus: "nhap" | "xuatBan" | "dongDaChAm") => {
     try {
-      await updateExamStatus.mutateAsync({ examId, status: newStatus });
+      await updateExamMutation.mutateAsync({ examId, data: { trangThai: newStatus } });
       toast.success("Cập nhật trạng thái thành công");
     } catch (error) {
       toast.error("Lỗi khi cập nhật trạng thái");
@@ -64,7 +65,7 @@ export default function ManagerExamsPage() {
   const handleDelete = async (examId: number) => {
     if (confirm("Bạn có chắc chắn muốn xóa bài kiểm tra này?")) {
       try {
-        await deleteExam.mutateAsync(examId);
+        await deleteExamMutation.mutateAsync(examId);
         toast.success("Xóa bài kiểm tra thành công");
       } catch (error) {
         toast.error("Lỗi khi xóa bài kiểm tra");
@@ -297,7 +298,7 @@ export default function ManagerExamsPage() {
                         </DropdownMenuItem>
                         {exam.trangThai === "nhap" && (
                           <DropdownMenuItem 
-                            onClick={() => handleStatusChange(exam.maBaiKiemTra, "xuat_ban")}
+                            onClick={() => handleStatusChange(exam.maBaiKiemTra, "xuatBan")}
                           >
                             Xuất bản
                           </DropdownMenuItem>

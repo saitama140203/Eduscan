@@ -144,7 +144,7 @@ const AdminTemplatesPage: React.FC = () => {
 
   const handleUploadFile = (template: AnswerSheetTemplate) => {
     // Check permission before opening dialog
-    if (!canEditTemplate(template)) {
+    if (!canEditTemplate()) {
       toast.error('Bạn không có quyền upload file cho template này. Chỉ người tạo hoặc Admin mới có thể upload file.');
       return;
     }
@@ -393,11 +393,11 @@ const AdminTemplatesPage: React.FC = () => {
                         </DropdownMenuItem>
                       <DropdownMenuItem 
                         onClick={() => handleUploadFile(template)}
-                        disabled={!canEditTemplate(template)}
+                        disabled={!canEditTemplate()}
                       >
                           <Upload className="w-4 h-4 mr-2" />
                           Upload File
-                        {!canEditTemplate(template) && (
+                        {!canEditTemplate() && (
                           <span className="text-xs text-muted-foreground ml-1">(Không có quyền)</span>
                         )}
                         </DropdownMenuItem>

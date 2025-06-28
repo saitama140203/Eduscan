@@ -1,7 +1,13 @@
 "use client"
 import { Input } from "@/components/ui/input"
 
-export function LogoUploader({ logo_url, uploading, onFileChange }) {
+interface LogoUploaderProps {
+  logo_url?: string;
+  uploading: boolean;
+  onFileChange: (file: File | null) => void;
+}
+
+export function LogoUploader({ logo_url, uploading, onFileChange }: LogoUploaderProps) {
   return (
     <div className="flex items-center gap-4">
       <div className="relative">
@@ -20,7 +26,10 @@ export function LogoUploader({ logo_url, uploading, onFileChange }) {
       <Input
         type="file"
         accept="image/*"
-        onChange={onFileChange}
+        onChange={(e) => {
+          const file = e.target.files?.[0] || null;
+          onFileChange(file);
+        }}
         className="flex-1"
         disabled={uploading}
       />

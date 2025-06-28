@@ -20,6 +20,7 @@ export type User = {
   email: string
   role: "admin" | "manager" | "teacher"
   organizationId?: string | null
+  tenToChuc?: string
   anhDaiDienUrl?: string | null
   phone?: string | null
   chuyenMon?: string | null
@@ -230,7 +231,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           success: false,
           message: error.message,
           isNetworkError: false,
-          status: error.statusCode,
+          status: error.status,
         };
       }
       

@@ -118,11 +118,18 @@ export default function ManagerDashboardPage() {
       ])
       
       if (showToast) {
-        toast.success("Dữ liệu đã được cập nhật")
+        toast({
+          title: "Thành công",
+          description: "Dữ liệu đã được cập nhật",
+        })
       }
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error)
-      toast.error("Không thể tải dữ liệu dashboard")
+      toast({
+        title: "Lỗi",
+        description: "Không thể tải dữ liệu dashboard",
+        variant: "destructive",
+      })
       
       // Fallback to mock data if API fails
       setStats({
