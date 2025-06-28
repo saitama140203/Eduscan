@@ -120,7 +120,7 @@ export const examsApi = {
       });
     }
     const queryString = params.toString();
-    return apiRequest(`/exams${queryString ? `?${queryString}` : ''}`);
+    return apiRequest(`/exams/${queryString ? `?${queryString}` : ''}`);
   },
 
   // Get exam by ID

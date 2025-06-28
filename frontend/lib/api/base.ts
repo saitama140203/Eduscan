@@ -83,14 +83,15 @@ export async function apiRequest(
   if (!response.ok) {
     let errorData = null;
     let errorMessage = `Lỗi API: ${response.status} ${response.statusText}`;
+    
+    // Chỉ đọc body một lần duy nhất
+    const responseClone = response.clone();
     try {
       errorData = await response.json();
-      // Chuẩn hóa: Backend FastAPI thường trả lỗi trong `detail`
       errorMessage = errorData.detail || JSON.stringify(errorData);
     } catch (e) {
-      // Nếu response không phải JSON, đọc dạng text
       try {
-        errorMessage = (await response.text()) || errorMessage;
+        errorMessage = await responseClone.text();
       } catch (textError) {
         debugError("Không thể đọc nội dung lỗi:", textError);
       }

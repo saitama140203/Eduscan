@@ -640,7 +640,7 @@ async def upload_template_complete(
         
         # Tạo OMR directory và lưu cả 2 files trong đó
         print("💾 Setting up OMR configuration...")
-        omr_templates_dir = f"${settings.OMR_DATA_DIR}/templates/template_{template_id}"
+        omr_templates_dir = f"{settings.OMR_DATA_DIR}/templates/template_{template_id}"
         os.makedirs(omr_templates_dir, exist_ok=True)
         
         # Lưu ảnh template trực tiếp vào OMR directory
@@ -1394,7 +1394,7 @@ async def get_template_file_details(
         },
         "storage_locations": {
             "backend_uploads": "/backend/app/uploads/template/",
-            "omr_templates": f"/backend/${settings.OMR_DATA_DIR}/templates/template_{template_id}/",
+            "omr_templates": f"/backend/{settings.OMR_DATA_DIR}/templates/template_{template_id}/",
             "database_table": "TAPTIN"
         }
     }

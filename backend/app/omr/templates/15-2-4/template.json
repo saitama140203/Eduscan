@@ -1,0 +1,106 @@
+{
+  "pageDimensions": [2084, 2947],
+  "bubbleDimensions": [54, 54],
+  "customLabels": {},
+  "fieldBlocks": {
+    "SoBaoDanh": {
+      "fieldType": "QTYPE_INT",
+      "origin": [1500, 300],
+      "fieldLabels": [
+        "sbd_1", "sbd_2", "sbd_3", "sbd_4", "sbd_5", "sbd_6"
+      ],
+      "bubblesGap": 57,
+      "labelsGap": 40,
+      "rows": 10,
+      "cols": 6
+    },
+    "MaDeThi": {
+      "fieldType": "QTYPE_INT",
+      "origin": [1800, 300],
+      "fieldLabels": [
+        "mdt_1", "mdt_2", "mdt_3"
+      ],
+      "bubblesGap": 57,
+      "labelsGap": 40,
+      "rows": 10,
+      "cols": 3
+    },
+    "Part1_1": {
+      "fieldType": "QTYPE_MCQ4",
+      "origin": [270, 1100],
+      "fieldLabels": [
+        "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"
+      ],
+      "bubblesGap": 82,
+      "labelsGap": 44,
+      "rows": 10,
+      "cols": 4
+    },
+    "Part1_2": {
+      "fieldType": "QTYPE_MCQ4",
+      "origin": [700, 1100],
+      "fieldLabels": [
+        "q11", "q12","q13", "q14","q15"
+      ],
+      "bubblesGap": 82,
+      "labelsGap": 44,
+      "rows": 10,
+      "cols": 4
+    },
+
+    "Part2_1": {
+      "fieldType": "QTYPE_MCQ2",
+      "origin": [270, 1740],
+      "fieldLabels": ["16_a", "16_b", "16_c", "16_d"],
+      "bubblesGap": 80,
+      "labelsGap": 44,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part2_2": {
+      "fieldType": "QTYPE_MCQ2",
+      "origin": [440, 1740],
+      "fieldLabels": ["17_a", "17_b", "17_c", "17_d"],
+      "bubblesGap": 80,
+      "labelsGap": 44,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_1": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [260, 2130],
+      "fieldLabels": ["17_col1", "17_col2", "17_col3", "17_col4"],
+      "bubblesGap": 45,
+      "labelsGap": 55,
+      "rows": 10,
+      "cols": 4
+    },
+    "Part3_2": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [525, 2130],
+      "fieldLabels": ["18_col1", "18_col2", "18_col3", "18_col4"],
+      "bubblesGap": 45,
+      "labelsGap": 55,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_3": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [800, 2130],
+      "fieldLabels": ["19_col1", "19_col2", "19_col3", "19_col4"],
+      "bubblesGap": 45,
+      "labelsGap": 57,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_4": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [1075, 2130],
+      "fieldLabels": ["20_col1", "20_col2", "20_col3", "20_col4"],
+      "bubblesGap": 45,
+      "labelsGap": 57,
+      "rows": 4,
+      "cols": 2
+    }
+  }
+}

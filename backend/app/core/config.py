@@ -12,7 +12,7 @@ BACKEND_ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class Settings(BaseSettings):
     APP_NAME: str = "EduScan AI"
     API_PREFIX: str = "/api"
-    DEBUG: bool = True
+    DEBUG: bool = False
 
     # Database settings - sẽ được cung cấp bởi Docker environment hoặc .env_backend cho local
     DATABASE_URL: Optional[str] = None 
@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     
     # OMR data directory
     OMR_DATA_DIR: str = os.getenv("OMR_DATA_DIR", os.path.join(BACKEND_ROOT_DIR, "..", "OMRChecker"))
-
+    STORAGE_PATH: str = os.getenv("STORAGE_PATH", os.path.join(OMR_DATA_DIR, "storage"))
     # OMR Service URL - for Docker containers
     OMR_API_URL: str = "http://localhost:8001"
 

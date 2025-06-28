@@ -191,7 +191,7 @@ const nextConfig = {
           },
           {
             key: 'Permissions-Policy',
-            value: 'camera=(), microphone=(), geolocation=()',
+            value: "camera=(self); microphone=(); geolocation=()",
           },
         ],
       },
@@ -271,12 +271,24 @@ const nextConfig = {
 
   // Rewrites để proxy API requests sang backend trong môi trường dev
   async rewrites() {
-    return [
-      {
-        source: '/api/v1/:path*',
-        destination: 'http://103.67.199.62:8000/api/v1/:path*',
-      },
-    ];
+    return {
+      // These rewrites are checked after headers/redirects
+      // and before files are checked
+      beforeFiles: [
+        {
+          source: '/api/v1/:path*/', // Xử lý URL có dấu gạch chéo cuối
+          destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*/`,
+        },
+        {
+          source: '/api/v1/:path*', // Xử lý URL không có dấu gạch chéo cuối
+          destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
+        },
+      ],
+      // These rewrites are checked after files are checked
+      afterFiles: [],
+      // These rewrites are checked as a last resort
+      fallback: [],
+    }
   },
 
   // Rewrites removed - using nginx proxy instead

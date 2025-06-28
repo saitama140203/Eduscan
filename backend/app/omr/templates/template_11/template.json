@@ -1,0 +1,36 @@
+{
+  "pageDimensions": [2084, 2947],
+  "bubbleDimensions": [45, 45],
+  "customLabels": {},
+  "fieldBlocks": {
+    "questions_1_10": {
+      "fieldType": "QTYPE_MCQ4",
+      "origin": [100, 200],
+      "fieldLabels": ["q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 10,
+      "cols": 4
+    },
+    "student_id": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [500, 150],
+      "fieldLabels": ["sbd_1", "sbd_2", "sbd_3", "sbd_4", "sbd_5", "sbd_6"],
+      "bubblesGap": 57,
+      "labelsGap": 40,
+      "rows": 10,
+      "cols": 6
+    }
+  },
+  "preProcessors": [
+    {
+      "name": "AdvancedFeatureAlignment",
+      "options": {
+        "reference": "",
+        "featureType": "ORB",
+        "maxFeatures": 5000,
+        "goodMatchPercent": 0.2
+      }
+    }
+  ]
+} 

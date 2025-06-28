@@ -8,28 +8,43 @@ from app.schemas.exam import ExamCreate, ExamUpdate, ExamOut, ExamClassAssignmen
 from app.models.user import User
 from app.utils.auth import get_current_active_user, check_manager_permission, check_teacher_permission
 
-router = APIRouter(prefix="/exams", tags=["exams"])
+router = APIRouter(
+    prefix="/exams", 
+    tags=["exams"],
+    redirect_slashes=False
+)
 
 
 @router.get("/", response_model=List[ExamOut])
 async def read_exams(
     org_id: Optional[int] = None,
     creator_id: Optional[int] = None,
+    class_id: Optional[int] = None,
     trangThai: Optional[str] = None,
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_async_db),
 ):
     if current_user.vaiTro == "ADMIN":
         exams = await ExamService.get_list(
-            db, maToChuc=org_id, maNguoiTao=creator_id, trangThai=trangThai
+            db, 
+            maToChuc=org_id, 
+            maNguoiTao=creator_id, 
+            maLopHoc=class_id,
+            trangThai=trangThai
         )
     elif current_user.vaiTro == "MANAGER":
         exams = await ExamService.get_list(
-            db, maToChuc=current_user.maToChuc, trangThai=trangThai
+            db, 
+            maToChuc=current_user.maToChuc, 
+            maLopHoc=class_id,
+            trangThai=trangThai
         )
     else:
         exams = await ExamService.get_list(
-            db, maNguoiTao=current_user.maNguoiDung, trangThai=trangThai
+            db, 
+            maNguoiTao=current_user.maNguoiDung, 
+            maLopHoc=class_id,
+            trangThai=trangThai
         )
     return exams
 

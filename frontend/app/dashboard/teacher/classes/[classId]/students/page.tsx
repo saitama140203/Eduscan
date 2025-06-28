@@ -51,6 +51,7 @@ export default function TeacherClassStudentsPage() {
 
   // Import states
   const [isImportDialogOpen, setIsImportDialogOpen] = useState(false)
+  const [importFile, setImportFile] = useState<File | null>(null)
   const [uploadedSheets, setUploadedSheets] = useState<{ sheetName: string; data: any[][] }[]>([])
   const [selectedSheet, setSelectedSheet] = useState<string>('')
   const [importPreview, setImportPreview] = useState<StudentImportData[]>([])
@@ -76,38 +77,53 @@ export default function TeacherClassStudentsPage() {
 
   // Import mutation
   const importStudentsMutation = useMutation({
-    mutationFn: async (studentsData: StudentImportData[]) => {
-      // Call API to import students
+    mutationFn: async (file: File) => {
+      const formData = new FormData()
+      formData.append('file', file)
+
       const response = await fetch(`/api/v1/classes/${classId}/students/import`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         credentials: 'include',
-        body: JSON.stringify({ students: studentsData }),
+        body: formData,
       })
       
       if (!response.ok) {
-        throw new Error('Không thể import học sinh')
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.detail || 'Không thể import học sinh. Vui lòng kiểm tra lại file Excel.')
       }
       
       return response.json()
     },
     onSuccess: (data) => {
       toast({
-        title: "Import thành công",
-        description: `Đã import ${data.imported || importPreview.length} học sinh vào lớp ${classDetails?.tenLop}.`,
+        title: "Import hoàn tất",
+        description: `Thành công: ${data.created_count}. Lỗi: ${data.error_count}.`,
       })
+      if (data.errors && data.errors.length > 0) {
+        toast({
+            title: `Chi tiết lỗi import (${data.errors.length} lỗi)`,
+            description: (
+              <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
+                <code className="text-white">{data.errors.slice(0, 5).join('\n')}</code>
+              </pre>
+            ),
+            variant: "warning",
+            duration: 10000,
+      })
+      }
       refetchStudents()
       setIsImportDialogOpen(false)
-      resetImportState()
     },
     onError: (error: Error) => {
       toast({
         title: "Lỗi import",
-        description: error.message || "Không thể import học sinh. Vui lòng kiểm tra lại dữ liệu.",
+        description: error.message || "Đã có lỗi xảy ra. Vui lòng thử lại.",
         variant: "destructive",
       })
+    },
+    onSettled: () => {
+      setIsImporting(false)
+      resetImportState()
     }
   })
 
@@ -117,9 +133,21 @@ export default function TeacherClassStudentsPage() {
     router.push(`/dashboard/teacher/students/${student.maHocSinh}`)
   }
 
+  const resetImportState = () => {
+    setImportFile(null)
+    setUploadedSheets([])
+    setSelectedSheet('')
+    setImportPreview([])
+    const fileInput = document.getElementById('excel-file') as HTMLInputElement;
+    if (fileInput) fileInput.value = '';
+  }
+
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    if (!file) return
+    if (!file) {
+      resetImportState()
+      return
+    }
 
     if (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls')) {
       toast({
@@ -127,14 +155,17 @@ export default function TeacherClassStudentsPage() {
         description: "Vui lòng chỉ upload file có định dạng .xlsx hoặc .xls",
         variant: "destructive",
       })
+      resetImportState()
       return
     }
+
+    setImportFile(file)
 
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
         const data = event.target?.result
-        const workbook = XLSX.read(data, { type: 'binary' })
+        const workbook = XLSX.read(data, { type: 'array' })
         
         const sheets = workbook.SheetNames.map(sheetName => {
           const worksheet = workbook.Sheets[sheetName]
@@ -142,33 +173,30 @@ export default function TeacherClassStudentsPage() {
           return { sheetName, data: jsonData as any[][] }
         })
 
-        if (sheets.length === 0) {
+        if (sheets.length === 0 || sheets[0].data.length < 2) {
           toast({
-            title: "File Rỗng",
-            description: "File Excel không có sheet nào để đọc.",
-            variant: "destructive",
+            title: "File Rỗng hoặc không hợp lệ",
+            description: "File Excel không có sheet nào hoặc không có dữ liệu.",
+            variant: "warning",
           })
           return
         }
 
         setUploadedSheets(sheets)
-        setSelectedSheet(sheets[0].sheetName)
-
-        toast({
-          title: "Đọc File Thành Công",
-          description: `Đã tìm thấy ${sheets.length} sheet. Vui lòng chọn sheet chứa dữ liệu học sinh.`,
-        })
+        // Automatically select the first sheet for preview
+        handleSheetChange(sheets[0].sheetName, sheets)
 
       } catch (error) {
         console.error("Error parsing Excel file:", error)
         toast({
           title: "Lỗi Xử Lý File",
-          description: "Không thể đọc hoặc xử lý file Excel. Vui lòng kiểm tra lại định dạng.",
+          description: "Không thể đọc file Excel. File có thể bị hỏng hoặc sai định dạng.",
           variant: "destructive",
         })
+        resetImportState()
       }
     }
-    reader.readAsBinaryString(file)
+    reader.readAsArrayBuffer(file)
   }
 
   const processSheetData = (sheetData: any[][]) => {
@@ -222,37 +250,27 @@ export default function TeacherClassStudentsPage() {
     }
   }
 
-  const handleSheetChange = (sheetName: string) => {
+  const handleSheetChange = (sheetName: string, sheets = uploadedSheets) => {
     setSelectedSheet(sheetName)
-    const sheetData = uploadedSheets.find(s => s.sheetName === sheetName)?.data
+    const sheetData = sheets.find(s => s.sheetName === sheetName)?.data
     if (sheetData) {
       const processedData = processSheetData(sheetData)
       setImportPreview(processedData)
     }
   }
 
-  const handleImport = async () => {
-    if (importPreview.length === 0) {
+  const handleImport = () => {
+    if (!importFile) {
       toast({
-        title: "Không có dữ liệu",
-        description: "Vui lòng chọn file và sheet chứa dữ liệu học sinh.",
+        title: "Chưa chọn file",
+        description: "Vui lòng chọn một file Excel để import.",
         variant: "destructive",
       })
       return
     }
 
     setIsImporting(true)
-    try {
-      await importStudentsMutation.mutateAsync(importPreview)
-    } finally {
-      setIsImporting(false)
-    }
-  }
-
-  const resetImportState = () => {
-    setUploadedSheets([])
-    setSelectedSheet('')
-    setImportPreview([])
+    importStudentsMutation.mutate(importFile)
   }
 
   const downloadTemplate = () => {
@@ -398,9 +416,9 @@ export default function TeacherClassStudentsPage() {
                     </Button>
                     <Button 
                       onClick={handleImport} 
-                      disabled={importPreview.length === 0 || isImporting}
+                      disabled={!importFile || isImporting}
                     >
-                      {isImporting ? "Đang import..." : `Import ${importPreview.length} học sinh`}
+                      {isImporting ? "Đang import..." : `Import`}
                     </Button>
                   </div>
                 </div>

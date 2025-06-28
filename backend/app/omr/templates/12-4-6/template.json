@@ -1,0 +1,142 @@
+{
+  "pageDimensions": [2084, 2947],
+  "bubbleDimensions": [45, 45],
+  "customLabels": {},
+  "fieldBlocks": {
+    "MaDeThi": {
+      "fieldType": "QTYPE_INT",
+      "origin": [1680, 670],
+      "fieldLabels": [
+        "mdt_1", "mdt_2", "mdt_3"
+      ],
+      "bubblesGap": 48,
+      "labelsGap": 30,
+      "rows": 10,
+      "cols": 3
+    },
+    "Part1_1": {
+      "fieldType": "QTYPE_MCQ4",
+      "origin": [395, 1350],
+      "fieldLabels": [
+        "q1", "q2", "q3", "q4", "q5", "q6", "q7", "q8", "q9", "q10"
+      ],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 10,
+      "cols": 4
+    },
+    "Part1_2": {
+      "fieldType": "QTYPE_MCQ4",
+      "origin": [755, 1350],
+      "fieldLabels": [
+        "q11", "q12"
+      ],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 2,
+      "cols": 4
+    },
+    "Part2_1": {
+      "fieldType": "QTYPE_MCQ2",
+      "origin": [395, 1890],
+      "fieldLabels": ["13_a", "13_b", "13_c", "13_d"],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part2_2": {
+      "fieldType": "QTYPE_MCQ2",
+      "origin": [540, 1890],
+      "fieldLabels": ["14_a", "14_b", "14_c", "14_d"],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part2_3": {
+      "fieldType": "QTYPE_MCQ2",
+      "origin": [755, 1890],
+      "fieldLabels": ["15_a", "15_b", "15_c", "15_d"],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part2_4": {
+      "fieldType": "QTYPE_MCQ2",
+      "origin": [900, 1890],
+      "fieldLabels": ["16_a", "16_b", "16_c", "16_d"],
+      "bubblesGap": 70,
+      "labelsGap": 38,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_1": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [385, 2225],
+      "fieldLabels": ["17_col1", "17_col2", "17_col3", "17_col4"],
+      "bubblesGap": 39,
+      "labelsGap": 47,
+      "rows": 10,
+      "cols": 4
+    },
+    "Part3_2": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [615, 2225],
+      "fieldLabels": ["18_col1", "18_col2", "18_col3", "18_col4"],
+      "bubblesGap": 39,
+      "labelsGap": 47,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_3": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [845, 2225],
+      "fieldLabels": ["19_col1", "19_col2", "19_col3", "19_col4"],
+      "bubblesGap": 39,
+      "labelsGap": 47,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_4": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [1075, 2225],
+      "fieldLabels": ["20_col1", "20_col2", "20_col3", "20_col4"],
+      "bubblesGap": 39,
+      "labelsGap": 47,
+      "rows": 4,
+      "cols": 2
+    },
+    "Part3_5": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [1305, 2225],
+      "fieldLabels": ["21_col1", "21_col2", "21_col3", "21_col4"],
+      "bubblesGap": 39,
+      "labelsGap": 47,
+      "rows": 4,
+      "cols": 2
+    },
+
+    "Part3_6": {
+      "fieldType": "QTYPE_INT10_SYMBOL",
+      "origin": [1535, 2225],
+      "fieldLabels": ["22_col1", "22_col2", "22_col3", "22_col4"],
+      "bubblesGap": 39,
+      "labelsGap": 47,
+      "rows": 4,
+      "cols": 5
+    }
+},
+  "preProcessors": [
+    {
+      "name": "AdvancedFeatureAlignment",
+      "options": {
+        "reference": "12-4-6.png",
+        "featureType": "ORB",
+        "maxFeatures": 5000,
+        "goodMatchPercent": 0.2
+      }
+    }
+  ]
+}

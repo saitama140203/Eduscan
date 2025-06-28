@@ -10,8 +10,9 @@ import io
 
 from app.core.config import settings
 from app.routes import auth, users, organizations, classes, students, exams, dashboard, settings as settings_router, answer_templates, websocket, admin, files, password_reset_requests, teacher, omr
-from app.db.session import Base, engine
+from app.db.session import Base, engine, AsyncSessionLocal
 from app.services.student_service import StudentService
+from app.websocket import setup_omr_websocket
 
 # Import tất cả các model để đảm bảo chúng được đăng ký với Base
 from app.models.user import User
@@ -43,14 +44,7 @@ app = FastAPI(
 # Cấu hình CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:8080",
-        "http://103.67.199.62:3000",
-        "http://103.67.199.62:8080",
-        "http://127.0.0.1:3000",
-        "http://127.0.0.1:8080"
-    ],  # Allow development and test origins
+    allow_origins=["*"],  # Allow development and test origins
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
     allow_headers=["*"],
@@ -79,7 +73,6 @@ app.include_router(dashboard.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(settings_router.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(answer_templates.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(files.router, prefix=f"{settings.API_PREFIX}/v1/files")
-app.include_router(websocket.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(password_reset_requests.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(teacher.router, prefix=f"{settings.API_PREFIX}/v1/teacher")
@@ -123,7 +116,9 @@ async def global_exception_handler(request: Request, exc: Exception):
             content={"message": "Lỗi hệ thống, vui lòng liên hệ quản trị viên"}
         )
 
+# Setup WebSocket
+app = setup_omr_websocket(app)
+
 # Thực thi ứng dụng với uvicorn nếu chạy trực tiếp file này
 if __name__ == "__main__":
-    uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) 
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True) 

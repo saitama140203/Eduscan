@@ -15,7 +15,10 @@ class ExamService:
         db: AsyncSession, 
         maToChuc: Optional[int] = None, 
         maNguoiTao: Optional[int] = None,
-        trangThai: Optional[str] = None
+        maLopHoc: Optional[int] = None,
+        trangThai: Optional[str] = None,
+        skip: int = 0,
+        limit: int = 1000
     ) -> List[ExamOut]:
         stmt = select(Exam)
         if maToChuc:
@@ -24,6 +27,12 @@ class ExamService:
             stmt = stmt.where(Exam.maNguoiTao == maNguoiTao)
         if trangThai:
             stmt = stmt.where(Exam.trangThai == trangThai)
+        if maLopHoc:
+            stmt = stmt.join(ExamClassRoom, Exam.maBaiKiemTra == ExamClassRoom.maBaiKiemTra).where(
+                ExamClassRoom.maLopHoc == maLopHoc
+            )
+        
+        stmt = stmt.offset(skip).limit(limit)
         
         result = await db.execute(stmt)
         exams = result.scalars().all()
