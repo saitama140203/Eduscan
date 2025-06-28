@@ -271,36 +271,13 @@ const nextConfig = {
 
   // Rewrites để proxy API requests sang backend trong môi trường dev
   async rewrites() {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL;
-    
-    // Chỉ tạo rewrites nếu có API URL được định nghĩa
-    if (!apiUrl || apiUrl === 'undefined') {
-      return {
-        beforeFiles: [],
-        afterFiles: [],
-        fallback: [],
-      };
-    }
-
     return {
-      // These rewrites are checked after headers/redirects
-      // and before files are checked
-      beforeFiles: [
-        {
-          source: '/api/v1/:path*/', // Xử lý URL có dấu gạch chéo cuối
-          destination: `${apiUrl}/:path*/`,
-        },
-        {
-          source: '/api/v1/:path*', // Xử lý URL không có dấu gạch chéo cuối
-          destination: `${apiUrl}/:path*`,
-        },
-      ],
-      // These rewrites are checked after files are checked
+      beforeFiles: [],
       afterFiles: [],
-      // These rewrites are checked as a last resort
       fallback: [],
-    }
+    };
   },
+  
 
   // Rewrites removed - using nginx proxy instead
 
