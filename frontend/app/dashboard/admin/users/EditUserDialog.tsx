@@ -7,7 +7,7 @@ import { useRef, useState, useEffect, useCallback } from "react"
 import { User, Upload, X, Check, AlertTriangle, Building, Shield } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useMutation } from "@tanstack/react-query"
-import { userApi } from "@/lib/api/users"
+import { usersApi } from "@/lib/api/users"
 import { useToast } from "@/components/ui/use-toast"
 import { rolesMap } from "@/lib/constants"
 import { UserUpdate } from "@/lib/api/users"
@@ -212,7 +212,7 @@ export function EditUserDialog({
   // Update user mutation
   const updateUserMutation = useMutation({
     mutationFn: (userData: UserUpdate) => 
-      userApi.updateUser(user.maNguoiDung, userData),
+      usersApi.updateUser(user.maNguoiDung, userData),
     onSuccess: () => {
       toast({ title: "Cập nhật người dùng thành công!" })
       onSuccess()

@@ -1175,7 +1175,7 @@ async def process_omr_images(
     exam_id: int = Form(...),
     images: List[UploadFile] = File(...),
     yolo_model: str = Form("models/best.pt"),
-    confidence: float = Form(0.25),
+    confidence: float = Form(0.4),
     auto_align: bool = Form(True),
     current_user: User = Depends(check_teacher_permission),
     db: AsyncSession = Depends(get_async_db)
@@ -1199,7 +1199,7 @@ async def process_omr_images_test(
     exam_id: int = Form(...),
     images: List[UploadFile] = File(...),
     yolo_model: str = Form("models/best.pt"),
-    confidence: float = Form(0.25),
+    confidence: float = Form(0.4),
     auto_align: bool = Form(True),
     db: AsyncSession = Depends(get_async_db)
 ):

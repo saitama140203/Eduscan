@@ -72,10 +72,7 @@ interface ExamFormData {
   selectedClasses: number[]
 }
 
-const SUBJECTS = [
-  'Toán học', 'Ngữ văn', 'Tiếng Anh', 'Vật lý', 'Hóa học', 'Sinh học',
-  'Lịch sử', 'Địa lý', 'GDCD', 'Tin học', 'Thể dục', 'Âm nhạc', 'Mỹ thuật'
-]
+
 
 export default function CreateExamPage() {
   const router = useRouter()
@@ -239,10 +236,13 @@ export default function CreateExamPage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   <div className="space-y-2">
                     <Label htmlFor="monHoc">Môn học *</Label>
-                    <Select value={formData.monHoc} onValueChange={(v: string) => setFormData(p => ({ ...p, monHoc: v }))}>
-                      <SelectTrigger><SelectValue placeholder="Chọn môn học" /></SelectTrigger>
-                      <SelectContent>{SUBJECTS.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
-                    </Select>
+                    <Input
+                      id="monHoc"
+                      type="text"
+                      value={formData.monHoc}
+                      onChange={(e) => setFormData((p) => ({ ...p, monHoc: e.target.value }))}
+                      placeholder="Nhập tên môn học"
+                    />
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="ngayThi">Ngày thi</Label>

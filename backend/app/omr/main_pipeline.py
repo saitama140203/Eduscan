@@ -284,7 +284,7 @@ def process_multiple_images_optimized(
     image_paths,
     template,
     yolo_model,
-    conf=0.25,
+    conf=0.4,
     aligner=None,
     base_output_dir=None,
     save_intermediate_files=False

@@ -24,11 +24,11 @@ interface ApiRequestOptions extends RequestInit {
   body?: any
 }
 
-export async function apiRequest(
+export async function apiRequest<T = any>(
   endpoint: string,
   options: ApiRequestOptions = {},
   { skipAuth = false, suppressErrors = false }: { skipAuth?: boolean, suppressErrors?: boolean } = {}
-) {
+): Promise<T | null> {
   if (!API_BASE_URL) {
     throw new Error("NEXT_PUBLIC_API_URL is not defined. Please check your .env file.");
   }
@@ -111,10 +111,11 @@ export async function apiRequest(
   
   try {
     const data = await response.json();
-    return data;
+    return data as T;
   } catch (e) {
     debugError("Lỗi khi parse JSON response:", e);
     // Có thể response là text (hiếm gặp với API chuẩn)
-    return await response.text();
+    const textData = await response.text();
+    return textData as unknown as T;
   }
 }

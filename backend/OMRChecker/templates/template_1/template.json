@@ -51,7 +51,7 @@
     "Part2_1": {
       "fieldType": "QTYPE_MCQ2",
       "origin": [270, 1740],
-      "fieldLabels": ["12_a", "12_b", "12_c", "12_d"],
+      "fieldLabels": ["13_a", "13_b", "13_c", "13_d"],
       "bubblesGap": 80,
       "labelsGap": 44,
       "rows": 4,
@@ -60,7 +60,7 @@
     "Part2_2": {
       "fieldType": "QTYPE_MCQ2",
       "origin": [440, 1740],
-      "fieldLabels": ["13_a", "13_b", "13_c", "13_d"],
+      "fieldLabels": ["14_a", "14_b", "14_c", "14_d"],
       "bubblesGap": 80,
       "labelsGap": 44,
       "rows": 4,
@@ -70,7 +70,7 @@
     "Part2_3": {
       "fieldType": "QTYPE_MCQ2",
       "origin": [700, 1740],
-      "fieldLabels": ["14_a", "14_b", "14_c", "15_d"],
+      "fieldLabels": ["15_a", "15_b", "15_c", "15_d"],
       "bubblesGap": 80,
       "labelsGap": 44,
       "rows": 4,

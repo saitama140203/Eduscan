@@ -1,16 +1,20 @@
 // lib/api/users.ts
 import { apiRequest } from './base';
+import type { PaginatedResponse } from '@/types/api';
 
 // Types
-export interface User {
+export interface UserProfile {
   maNguoiDung: number;
-  maToChuc: number;
   email: string;
   hoTen: string;
-  vaiTro: string;
+  vaiTro: 'ADMIN' | 'MANAGER' | 'TEACHER';
   trangThai: boolean;
+  soDienThoai?: string;
+  urlAnhDaiDien?: string;
   thoiGianTao: string;
-  thoiGianCapNhat: string;
+  soLopDay?: number; // Giả sử API trả về
+  tenToChuc?: string;
+  maToChuc?: number;
 }
 
 export interface UserCreate {
@@ -26,112 +30,94 @@ export interface UserCreate {
 export interface UserUpdate {
   email?: string;
   hoTen?: string;
-  vaiTro?: string;
+  vaiTro?: 'ADMIN' | 'MANAGER' | 'TEACHER';
   trangThai?: boolean;
   maToChuc?: number;
+  soDienThoai?: string;
+  urlAnhDaiDien?: string;
 }
 
-export interface PaginatedResponse<T> {
-  data: T[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
-// API functions
-// Individual API functions for easier typing
-export const getUsers = async (skip = 0, limit = 100) => {
-  return apiRequest(`/users/?skip=${skip}&limit=${limit}`)
-}
-
-export const getUsersByOrganization = async (orgId: number, skip = 0, limit = 100) => {
-  return apiRequest(`/users/organization/${orgId}?skip=${skip}&limit=${limit}`)
-}
-
-export const getTeachers = async (orgId?: number, skip = 0, limit = 100) => {
-  if (orgId) {
-    const users = await getUsersByOrganization(orgId, skip, limit)
-    return users.filter((user: User) => user.vaiTro.toLowerCase() === 'teacher')
-  } else {
-    const users = await getUsers(skip, limit)
-    return users.filter((user: User) => user.vaiTro.toLowerCase() === 'teacher')
-  }
-}
-
-export const getUser = async (userId: string) => {
-  return apiRequest(`/users/${userId}`)
-}
-
-export const createUser = async (data: UserCreate) => {
-  return apiRequest('/users/', {
-    method: 'POST',
-    body: data,
-  })
-}
-
-export const updateUser = async (userId: string, data: UserUpdate) => {
-  return apiRequest(`/users/${userId}`, {
-    method: 'PUT',
-    body: data,
-  })
-}
-
-export const deleteUser = async (userId: string) => {
-  return apiRequest(`/users/${userId}`, {
-    method: 'DELETE',
-  })
-}
-
-export const userApi = {
-  // Get paginated users
-  async getUsers(skip: number = 0, limit: number = 20): Promise<PaginatedResponse<User>> {
-    return apiRequest(`/users/?skip=${skip}&limit=${limit}`)
+export const usersApi = {
+  getMe: async (): Promise<UserProfile | null> => {
+    return await apiRequest<UserProfile>('/users/me');
   },
 
-  async getUsersByOrganization(orgId: number, skip: number = 0, limit: number = 20): Promise<PaginatedResponse<User>> {
-    return apiRequest(`/users/organization/${orgId}?skip=${skip}&limit=${limit}`)
-  },
-
-  // Search users
-  async searchUsers(
-    query: string,
-    role?: string,
-    orgId?: number,
-    skip: number = 0,
-    limit: number = 20
-  ): Promise<PaginatedResponse<User>> {
-    const params = new URLSearchParams({ skip: skip.toString(), limit: limit.toString() })
-    if (query) params.append('search', query)
-    if (role) params.append('role', role)
-    if (orgId) params.append('organization_id', orgId.toString())
+  getUsers: async (params?: any): Promise<PaginatedResponse<UserProfile> | null> => {
+    const queryParams = new URLSearchParams(params).toString();
+    const users = await apiRequest<UserProfile[]>(`/users?${queryParams}`);
     
-    return apiRequest(`/users/search?${params}`)
+    // Transform array response to paginated format expected by frontend
+    if (users && Array.isArray(users)) {
+      return {
+        data: users,
+        meta: {
+          totalItems: users.length,
+          itemCount: users.length,
+          itemsPerPage: params?.limit || 100,
+          totalPages: 1,
+          currentPage: params?.page || 1
+        }
+      };
+    }
+    return null;
   },
 
-  // Get user by ID
-  async getUser(userId: number): Promise<User> {
-    return apiRequest(`/users/${userId}`)
+  getUserById: async (id: number): Promise<UserProfile | null> => {
+    return await apiRequest<UserProfile>(`/users/${id}`);
   },
 
-  async createUser(userData: UserCreate): Promise<User> {
-    return apiRequest('/users/', {
+  createUser: async (userData: Partial<UserProfile> & { password?: string }): Promise<UserProfile | null> => {
+    return await apiRequest<UserProfile>('/users', {
       method: 'POST',
-      body: userData,
-    })
+      body: JSON.stringify(userData),
+      headers: { 'Content-Type': 'application/json' },
+    });
   },
 
-  async updateUser(userId: number, userData: UserUpdate): Promise<User> {
-    return apiRequest(`/users/${userId}`, {
-      method: 'PUT', 
-      body: userData,
-    })
+  updateUser: async (id: number, userData: Partial<UserProfile>): Promise<UserProfile | null> => {
+    return await apiRequest<UserProfile>(`/users/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(userData),
+      headers: { 'Content-Type': 'application/json' },
+    });
   },
 
-  async deleteUser(userId: number): Promise<void> {
-    return apiRequest(`/users/${userId}`, {
-      method: 'DELETE',
-    })
+  deleteUser: async (id: number): Promise<void | null> => {
+    await apiRequest(`/users/${id}`, { method: 'DELETE' });
   },
-}
+
+  changePassword: async (userId: number, data: any): Promise<void | null> => {
+    await apiRequest(`/users/${userId}/change-password`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+      headers: { 'Content-Type': 'application/json' },
+    });
+  },
+
+  resetPassword: async (userId: number): Promise<{ newPassword?: string } | null> => {
+    return await apiRequest<{ newPassword?: string }>(`/users/${userId}/reset-password`, {
+      method: 'POST',
+    });
+  },
+
+  getTeachers: async (params: { 
+    page?: number, 
+    limit?: number, 
+    search?: string, 
+    sortBy?: string, 
+    sortOrder?: string 
+  }): Promise<PaginatedResponse<UserProfile> | null> => {
+    const queryParams = new URLSearchParams();
+    if (params.page) {
+      const skip = (params.page - 1) * (params.limit || 10);
+      queryParams.append('skip', skip.toString());
+    }
+    if (params.limit) queryParams.append('limit', params.limit.toString());
+    if (params.search) queryParams.append('search', params.search);
+    if (params.sortBy) queryParams.append('sort_by', params.sortBy);
+    if (params.sortOrder) queryParams.append('sort_order', params.sortOrder);
+    
+    return await apiRequest<PaginatedResponse<UserProfile>>(`/manager/teachers?${queryParams.toString()}`);
+  }
+};
 

@@ -1,12 +1,16 @@
-from fastapi import APIRouter, Depends, status, Body
+from fastapi import APIRouter, Depends, status, Body, HTTPException
 from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi.responses import StreamingResponse
+import io
 
 from app.db.session import get_async_db
 from app.services.exam_service import ExamService
 from app.schemas.exam import ExamCreate, ExamUpdate, ExamOut, ExamClassAssignment, ExamAnswersCreate, ExamAnswersOut
 from app.models.user import User
 from app.utils.auth import get_current_active_user, check_manager_permission, check_teacher_permission
+from app.services.user_service import UserService
+from app.services.omr_service import get_omr_service, OMRDatabaseService
 
 router = APIRouter(
     prefix="/exams", 
@@ -220,3 +224,24 @@ async def get_exam_results(
     
     results = await ExamService.get_exam_results(db, exam_id, class_id)
     return results
+
+
+@router.get("/{exam_id}/export-results", response_class=StreamingResponse)
+async def export_exam_results_with_status(
+    exam_id: int,
+    db: AsyncSession = Depends(get_async_db),
+    current_user: User = Depends(check_teacher_permission)
+):
+    """
+    Export kết quả bài thi ra file Excel, bao gồm cả học sinh đã chấm và chưa chấm.
+    """
+    try:
+        excel_bytes = await OMRDatabaseService.export_results_with_status(db, exam_id)
+        
+        return StreamingResponse(
+            io.BytesIO(excel_bytes),
+            media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={"Content-Disposition": f"attachment; filename=ket_qua_ky_thi_{exam_id}.xlsx"}
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

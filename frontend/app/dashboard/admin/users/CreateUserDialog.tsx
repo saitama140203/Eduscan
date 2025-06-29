@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import { useRef, useState, useCallback, useMemo } from "react"
 import { User, Upload, X, Check, AlertTriangle } from "lucide-react"
-import { userApi } from "@/lib/api/users"
+import { usersApi } from "@/lib/api/users"
 import { organizationsApi } from "@/lib/api/organizations"
 import { useMutation, useQuery } from "@tanstack/react-query"
 import { useToast } from "@/components/ui/use-toast"
@@ -18,9 +18,10 @@ interface NewUserData {
   hoTen: string;
   soDienThoai?: string;
   maToChuc: number;
-  vaiTro: string;
+  vaiTro: 'MANAGER' | 'TEACHER';
   trangThai: boolean;
   urlAnhDaiDien?: string;
+  password?: string;
 }
 
 // Cloudinary config
@@ -58,7 +59,7 @@ export function CreateUserDialog({
     email: '',
     hoTen: '',
     maToChuc: 0, // Sẽ được set khi chọn tổ chức
-    vaiTro: 'teacher', // Default role
+    vaiTro: 'TEACHER', // Default role (uppercase)
     trangThai: true, // Default to active
   })
 
@@ -70,7 +71,7 @@ export function CreateUserDialog({
 
   // Mutation to create user
   const createUserMutation = useMutation({
-    mutationFn: userApi.createUser,
+    mutationFn: usersApi.createUser,
     onSuccess: () => {
       toast({ title: "Tạo người dùng mới thành công!" })
       onSuccess()
@@ -79,7 +80,7 @@ export function CreateUserDialog({
         email: '',
         hoTen: '',
         maToChuc: 0,
-        vaiTro: 'teacher',
+        vaiTro: 'TEACHER',
         trangThai: true,
       }) // Reset form
       setAvatarFile(null)
@@ -99,7 +100,7 @@ export function CreateUserDialog({
     const { name, value } = e.target
     setForm(prev => ({
       ...prev,
-      [name]: value
+      [name]: name === 'maToChuc' ? parseInt(value) || 0 : value
     }))
     if (errors[name]) {
       setErrors(prev => {
@@ -164,6 +165,7 @@ export function CreateUserDialog({
 
       await createUserMutation.mutateAsync({
         ...form,
+        password: "abc12345@", // Default password
         urlAnhDaiDien: avatarUrl,
       })
     } catch (error: any) {
@@ -411,8 +413,8 @@ export function CreateUserDialog({
                   >
                     <option value="0" disabled>Chọn tổ chức</option>
                     {orgs.map((org: any) => (
-                      <option key={org.maToChuc} value={org.maToChuc}>
-                        {org.tenToChuc}
+                      <option key={org.id} value={org.id}>
+                        {org.name}
                       </option>
                     ))}
                   </select>

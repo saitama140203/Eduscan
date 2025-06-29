@@ -23,6 +23,13 @@ import re
 from sqlalchemy import func
 from decimal import Decimal
 from app.models.user import User
+from app.models import Student, ClassRoom, ExamClassRoom, AnswerSheet, Result, Exam, Answer, User
+from sqlalchemy import select, func, and_, desc, asc
+from sqlalchemy.orm import aliased, joinedload
+from sqlalchemy.ext.asyncio import AsyncSession
+from datetime import datetime
+
+from app.services.websocket_service import WebSocketService
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +100,7 @@ class OMRService:
         template_id: int,
         images: List[UploadFile],
         yolo_model: str = "models/best.pt",
-        confidence: float = 0.25,
+        confidence: float = 0.4,
         auto_align: bool = True
     ) -> Dict:
         """Xử lý batch OMR images, tự động lấy đáp án từ DB."""
@@ -374,7 +381,7 @@ class OMRService:
                     "template_path": str(full_template_path),
                     "yolo_model": str(full_model_path),
                     "answer_key_data": answer_key_data,
-                    "confidence": 0.25, # Có thể thay đổi
+                    "confidence": 0.4, # Có thể thay đổi
                     "auto_align": True   # Có thể thay đổi
                 }
 
@@ -426,7 +433,6 @@ class OMRService:
                         answer_sheet = AnswerSheet(
                             maKyThi=exam_id,
                             maHocSinh=student.maHocSinh,
-                            sobaodanh=sbd,
                             trangThai=True
                         )
                         db.add(answer_sheet)
@@ -490,7 +496,6 @@ class OMRService:
                 Student.ngaySinh,
                 Student.gioiTinh,
                 ClassRoom.tenLop,
-                AnswerSheet.sobaodanh,
                 Result.chiTiet
             ).join(
                 Student, Result.maHocSinh == Student.maHocSinh
@@ -512,7 +517,6 @@ class OMRService:
             data = []
             for res in results:
                 data.append({
-                    "Số báo danh": res.sobaodanh,
                     "Mã học sinh": res.maHocSinhTruong,
                     "Họ tên": res.hoTen,
                     "Ngày sinh": res.ngaySinh.strftime("%d/%m/%Y") if res.ngaySinh else "",
@@ -688,15 +692,12 @@ class OMRDatabaseService:
                     
                     # Kiểm tra format đáp án
                     if isinstance(dap_an_data, dict):
-                        # **ENHANCED**: Xử lý trường hợp ma_de=None
                         if ma_de and ma_de in dap_an_data:
-                            # Format mới: {"123": {...}, "456": {...}} - theo mã đề
                             answers_for_ma_de = dap_an_data[ma_de]
                             for q_id, answer in answers_for_ma_de.items():
                                 answer_key[str(q_id)] = str(answer)
                             logging.info(f"Using answer key for mã đề: {ma_de}")
                         elif len(dap_an_data) == 1:
-                            # Chỉ có 1 đề duy nhất - sử dụng luôn
                             first_ma_de = next(iter(dap_an_data.keys()))
                             if first_ma_de.isdigit():
                                 answers_for_ma_de = dap_an_data[first_ma_de]
@@ -704,12 +705,10 @@ class OMRDatabaseService:
                                     answer_key[str(q_id)] = str(answer)
                                 logging.info(f"Auto-selected mã đề: {first_ma_de} (only option)")
                             else:
-                                # Format cũ trực tiếp
                                 for q_id, answer in dap_an_data.items():
                                     answer_key[str(q_id)] = str(answer)
                                 logging.info("Using direct answer format")
                         elif not ma_de and len(dap_an_data) > 1:
-                            # Nhiều mã đề nhưng không detect được - lấy đề đầu tiên
                             first_ma_de = next(iter(dap_an_data.keys()))
                             if all(k.isdigit() for k in dap_an_data.keys()):
                                 # Tất cả key đều là số - format theo mã đề
@@ -754,7 +753,6 @@ class OMRDatabaseService:
                     else:
                         diem_data = json.loads(str(answer_obj.diemMoiCauJson))
                     
-                    # diemMoiCauJson format: {"q1": 0.132, "q2": 0.132, ...}
                     for q_id, score in diem_data.items():
                         score_key[str(q_id)] = float(score)
                         
@@ -795,18 +793,30 @@ class OMRDatabaseService:
         sbd: str
     ) -> Optional[Student]:
         """
-        Tìm học sinh theo số báo danh (6 số cuối của mã học sinh trường)
-        trong các lớp tham gia bài kiểm tra
-        
-        Args:
-            db: Database session
-            exam_id: ID bài kiểm tra
-            sbd: Số báo danh (6 ký tự cuối)
-            
-        Returns:
-            Student object nếu tìm thấy, None nếu không
+        Tìm học sinh theo số báo danh (6 số cuối của mã học sinh trường).
+        Hàm này sẽ tự động trích xuất và làm sạch SBD để chỉ lấy 6 số cuối.
         """
         try:
+            # --- START FIX: Làm sạch SBD đầu vào ---
+            if not sbd or not isinstance(sbd, str):
+                return None
+            
+            import re
+            sbd_cleaned = re.sub(r'[^\d]', '', sbd)
+            
+            # Nếu SBD nhận dạng được dài hơn 6 số, chỉ lấy 6 số cuối
+            if len(sbd_cleaned) > 6:
+                sbd_to_find = sbd_cleaned[-6:]
+            else:
+                sbd_to_find = sbd_cleaned
+                
+            if not sbd_to_find:
+                logging.warning(f"SBD '{sbd}' sau khi làm sạch không còn ký tự số.")
+                return None
+            # --- END FIX ---
+            
+            logging.info(f"🔍 DEBUGGING: Searching for SBD '{sbd_to_find}' (original: '{sbd}') in exam {exam_id}")
+            
             # Lấy danh sách lớp tham gia bài kiểm tra
             from app.models.exam import ExamClassRoom
             
@@ -817,7 +827,7 @@ class OMRDatabaseService:
             ).where(
                 and_(
                     ExamClassRoom.maBaiKiemTra == exam_id,
-                    Student.maHocSinhTruong.like(f"%{sbd}"),  # Tìm SBD ở cuối
+                    Student.maHocSinhTruong.like(f"%{sbd_to_find}"),  # Tìm SBD đã được làm sạch
                     Student.trangThai == True
                 )
             )
@@ -830,17 +840,17 @@ class OMRDatabaseService:
             for student in students:
                 if student.maHocSinhTruong and len(student.maHocSinhTruong) >= 6:
                     last_6_digits = student.maHocSinhTruong[-6:]
-                    if last_6_digits == sbd:
+                    if last_6_digits == sbd_to_find: # So sánh với SBD đã được làm sạch
                         matching_students.append(student)
             
             if len(matching_students) == 1:
-                logging.info(f"Found student {matching_students[0].hoTen} for SBD {sbd}")
+                logging.info(f"Found student {matching_students[0].hoTen} for SBD {sbd_to_find}")
                 return matching_students[0]
             elif len(matching_students) > 1:
-                logging.warning(f"Multiple students found for SBD {sbd}")
+                logging.warning(f"Multiple students found for SBD {sbd_to_find}")
                 return matching_students[0]  # Return first match
             else:
-                logging.warning(f"No student found for SBD {sbd}")
+                logging.warning(f"No student found for SBD {sbd_to_find}")
                 return None
                 
         except Exception as e:
@@ -877,6 +887,14 @@ class OMRDatabaseService:
         """
         Chấm điểm và tùy chọn lưu kết quả vào database
         """
+        # Gửi thông báo bắt đầu
+        if scanner_user_id:
+            await WebSocketService.send_omr_progress_update(
+                user_id=scanner_user_id,
+                status="processing",
+                message=f"Bắt đầu xử lý ảnh cho SBD: {sbd}..."
+            )
+
         try:
             # LOG: In ra student_answers để debug
             logging.info(f"Processing OMR for SBD {sbd}, answers keys: {list(student_answers.keys())}")
@@ -884,6 +902,13 @@ class OMRDatabaseService:
             # 1. Phát hiện mã đề từ kết quả OMR
             ma_de = OMRDatabaseService.detect_ma_de_from_omr_results(student_answers)
             logging.info(f"Detected mã đề: {ma_de}")
+            if scanner_user_id:
+                await WebSocketService.send_omr_progress_update(
+                    user_id=scanner_user_id,
+                    status="processing",
+                    message=f"Đã nhận diện mã đề: {ma_de}",
+                    details={"sbd": sbd, "ma_de": ma_de}
+                )
             
             # 2. Lấy đáp án chuẩn từ database (với fallback handling)
             try:
@@ -916,17 +941,7 @@ class OMRDatabaseService:
                 else:
                     raise e
             
-            # 3. Tìm học sinh theo SBD
-            student = await OMRDatabaseService.find_student_by_sbd(db, exam_id, sbd)
-            if not student:
-                return {
-                    "success": False,
-                    "error": f"Không tìm thấy học sinh với SBD: {sbd}",
-                    "sbd": sbd,
-                    "student_answers": student_answers
-                }
-            
-            # 4. Chấm điểm
+            # 3. Chấm điểm (Thực hiện trước khi tìm học sinh)
             total_score = 0.0
             correct_count = 0
             wrong_count = 0
@@ -934,112 +949,115 @@ class OMRDatabaseService:
             details = []
             
             logging.info(f"Scoring: {len(answer_key)} questions from answer key, {len(student_answers)} student answers")
-            
-            # Xử lý từng câu hỏi
+
+            # --- LOGIC CHẤM ĐIỂM GIỮ NGUYÊN ---
+            # (Phần code tính điểm, so sánh đáp án, xử lý câu hỏi nhóm...)
+            # ... (giữ nguyên phần lặp qua answer_key để tính điểm) ...
+            # --- KẾT THÚC LOGIC CHẤM ĐIỂM ---
             for q_id, correct_answer in answer_key.items():
                 student_answer = student_answers.get(q_id, "")
                 points = score_key.get(q_id, 0.0)
+                is_correct = student_answer.upper() == correct_answer.upper()
                 
                 if not student_answer or student_answer.strip() == "":
-                    # Câu bỏ trống
                     blank_count += 1
-                    is_correct = False
-                    earned_points = 0.0
-                elif student_answer.upper() == correct_answer.upper():
-                    # Câu trả lời đúng
+                elif is_correct:
                     correct_count += 1
-                    is_correct = True
-                    earned_points = points
                     total_score += points
                 else:
-                    # Câu trả lời sai
                     wrong_count += 1
-                    is_correct = False
-                    earned_points = 0.0
                 
                 details.append({
                     "question_id": q_id,
                     "student_answer": student_answer,
                     "correct_answer": correct_answer,
                     "is_correct": is_correct,
-                    "points": points,
-                    "earned_points": earned_points
+                    "points": points
                 })
             
-            # 4. Lưu/cập nhật AnswerSheet
-            answer_sheet_stmt = select(AnswerSheet).where(
-                and_(
-                    AnswerSheet.maBaiKiemTra == exam_id,
-                    AnswerSheet.maHocSinh == student.maHocSinh
+            logging.info(f"🔍 PRE-SAVE SCORE: {total_score} (Correct: {correct_count}, Wrong: {wrong_count}, Blank: {blank_count})")
+
+            # 4. Tìm học sinh theo SBD (Sau khi đã có điểm)
+            student = await OMRDatabaseService.find_student_by_sbd(db, exam_id, sbd)
+            
+            if student and scanner_user_id:
+                await WebSocketService.send_omr_progress_update(
+                    user_id=scanner_user_id,
+                    status="matching",
+                    message=f"Đã khớp SBD {sbd} với học sinh: {student.hoTen}",
+                    details={"sbd": sbd, "student_name": student.hoTen}
                 )
-            )
-            answer_sheet_result = await db.execute(answer_sheet_stmt)
-            answer_sheet = answer_sheet_result.scalars().first()
-            
-            if not answer_sheet:
-                # Tạo mới AnswerSheet
-                answer_sheet = AnswerSheet(
-                    maBaiKiemTra=exam_id,
-                    maHocSinh=student.maHocSinh,
-                    maNguoiQuet=scanner_user_id,
-                    urlHinhAnh=annotated_image_path,
-                    cauTraLoiJson=student_answers,
-                    daXuLyHoanTat=True,
-                    doTinCay=95.0  # Default confidence
+
+            # Nếu tìm thấy học sinh VÀ được yêu cầu lưu, thì mới thực hiện ghi vào DB
+            if student and save_to_db:
+                # 4. Lưu/cập nhật AnswerSheet
+                answer_sheet_stmt = select(AnswerSheet).where(
+                    and_(
+                        AnswerSheet.maBaiKiemTra == exam_id,
+                        AnswerSheet.maHocSinh == student.maHocSinh
+                    )
                 )
-                db.add(answer_sheet)
-            else:
-                # Cập nhật AnswerSheet
-                answer_sheet.cauTraLoiJson = student_answers
-                answer_sheet.daXuLyHoanTat = True
-                answer_sheet.urlHinhAnh = annotated_image_path
-                if scanner_user_id:
-                    answer_sheet.maNguoiQuet = scanner_user_id
+                answer_sheet_result = await db.execute(answer_sheet_stmt)
+                answer_sheet = answer_sheet_result.scalars().first()
+                
+                # Lấy đường dẫn tương đối từ đường dẫn vật lý
+                def get_relative_path(physical_path):
+                    if not physical_path: return None
+                    try:
+                        return str(Path(physical_path).relative_to(Path(settings.STORAGE_PATH)))
+                    except ValueError:
+                        return physical_path
+
+                relative_original_path = get_relative_path(image_path)
+                relative_annotated_path = annotated_image_path
             
-            await db.flush()  # Để có ID của answer_sheet
+                if not answer_sheet:
+                    answer_sheet = AnswerSheet(
+                            maBaiKiemTra=exam_id, maHocSinh=student.maHocSinh, maNguoiQuet=scanner_user_id,
+                            urlHinhAnh=relative_original_path, urlHinhAnhXuLy=relative_annotated_path,
+                            cauTraLoiJson=student_answers, daXuLyHoanTat=True, doTinCay=95.0
+                    )
+                    db.add(answer_sheet)
+                else:
+                    answer_sheet.cauTraLoiJson = student_answers
+                    answer_sheet.daXuLyHoanTat = True
+                    answer_sheet.urlHinhAnh = relative_original_path
+                    answer_sheet.urlHinhAnhXuLy = relative_annotated_path
+                    answer_sheet.thoiGianCapNhat = datetime.utcnow()
+                    if scanner_user_id:
+                        answer_sheet.maNguoiQuet = scanner_user_id
             
-            # 5. Lưu/cập nhật Result
-            result_stmt = select(Result).where(
-                and_(
-                    Result.maBaiKiemTra == exam_id,
-                    Result.maHocSinh == student.maHocSinh
-                )
-            )
-            result_result = await db.execute(result_stmt)
-            exam_result = result_result.scalars().first()
+                await db.flush()
             
-            if not exam_result:
-                # Tạo mới Result
-                exam_result = Result(
-                    maPhieuTraLoi=answer_sheet.maPhieuTraLoi,
-                    maBaiKiemTra=exam_id,
-                    maHocSinh=student.maHocSinh,
-                    diem=Decimal(str(round(total_score, 2))),
-                    soCauDung=correct_count,
-                    soCauSai=wrong_count,
-                    soCauChuaTraLoi=blank_count,
-                    chiTietJson=details
-                )
-                db.add(exam_result)
-            else:
-                # Cập nhật Result
-                exam_result.diem = Decimal(str(round(total_score, 2)))
-                exam_result.soCauDung = correct_count
-                exam_result.soCauSai = wrong_count
-                exam_result.soCauChuaTraLoi = blank_count
-                exam_result.chiTietJson = details
-                exam_result.maPhieuTraLoi = answer_sheet.maPhieuTraLoi
+                # 5. Lưu/cập nhật Result
+                result_stmt = select(Result).where(and_(Result.maBaiKiemTra == exam_id, Result.maHocSinh == student.maHocSinh))
+                exam_result = (await db.execute(result_stmt)).scalars().first()
             
-            if save_to_db:
+                if not exam_result:
+                    exam_result = Result(
+                            maPhieuTraLoi=answer_sheet.maPhieuTraLoi, maBaiKiemTra=exam_id, maHocSinh=student.maHocSinh,
+                            diem=Decimal(str(round(total_score, 2))), soCauDung=correct_count,
+                            soCauSai=wrong_count, soCauChuaTraLoi=blank_count, chiTietJson=details
+                    )
+                    db.add(exam_result)
+                else:
+                    exam_result.diem = Decimal(str(round(total_score, 2)))
+                    exam_result.soCauDung = correct_count
+                    exam_result.soCauSai = wrong_count
+                    exam_result.soCauChuaTraLoi = blank_count
+                    exam_result.chiTietJson = details
+                    exam_result.maPhieuTraLoi = answer_sheet.maPhieuTraLoi
+                    exam_result.thoiGianCapNhat = datetime.utcnow()
+            
                 await db.commit()
                 logging.info(f"Result for SBD {sbd} saved to database.")
             
-            # 6. Trả về kết quả (luôn trả về, dù có lưu hay không)
+            # 6. Trả về kết quả (luôn trả về, dù có tìm thấy học sinh hay không)
             result_data = {
                 "success": True,
-                "student_id": student.maHocSinh,
-                "student_name": student.hoTen,
-                "student_code": student.maHocSinhTruong,
+                "student_id": student.maHocSinh if student else None,
+                "student_name": student.hoTen if student else None,
+                "student_code": student.maHocSinhTruong if student else None,
                 "sbd": sbd,
                 "ma_de": ma_de,
                 "total_score": round(total_score, 2),
@@ -1047,17 +1065,29 @@ class OMRDatabaseService:
                 "wrong_answers": wrong_count,
                 "blank_answers": blank_count,
                 "total_questions": len(answer_key),
-                "percentage": round((correct_count / len(answer_key)) * 100, 2) if answer_key else 0,
                 "details": details,
-                "answer_sheet_id": answer_sheet.maPhieuTraLoi if 'answer_sheet' in locals() and answer_sheet else None,
-                "result_id": exam_result.maKetQua if 'exam_result' in locals() and hasattr(exam_result, 'maKetQua') else None
             }
             
-            logging.info(f"OMR scoring completed for student {student.hoTen} (SBD: {sbd}): {total_score} points, mã đề: {ma_de}")
+            if scanner_user_id:
+                await WebSocketService.send_omr_progress_update(
+                    user_id=scanner_user_id,
+                    status="complete",
+                    message=f"Hoàn tất chấm điểm cho SBD {sbd}. Điểm: {result_data['total_score']}",
+                    details=result_data
+                )
+
+            logging.info(f"OMR scoring completed for SBD {sbd}. Student found: {bool(student)}")
             return result_data
             
         except Exception as e:
-            logging.error(f"Error scoring OMR result: {str(e)}")
+            if scanner_user_id:
+                await WebSocketService.send_omr_progress_update(
+                    user_id=scanner_user_id,
+                    status="error",
+                    message=f"Lỗi khi xử lý SBD {sbd}: {str(e)}",
+                    details={"sbd": sbd}
+                )
+            logging.error(f"Error scoring OMR result for SBD {sbd}: {str(e)}", exc_info=True)
             await db.rollback()
             return {
                 "success": False,
@@ -1104,8 +1134,9 @@ class OMRDatabaseService:
                     
                     if result.get("success"):
                         successful += 1
-                        # Thêm filename vào kết quả thành công để frontend dễ map
+                        # Thêm filename và annotated_image_path vào kết quả thành công
                         result["filename"] = filename
+                        result["annotated_image_path"] = annotated_image_path
                         results.append(result)
                     else:
                         failed += 1
@@ -1216,6 +1247,403 @@ class OMRDatabaseService:
             } 
 
     @staticmethod
+    async def get_results_by_exam(db: AsyncSession, exam_id: int):
+        """
+        Lấy danh sách kết quả chi tiết của tất cả học sinh cho một bài thi.
+        Bao gồm cả những học sinh chưa được chấm.
+        """
+        try:
+            # Lấy thông tin cơ bản của bài thi
+            exam_info_stmt = select(Exam).where(Exam.maBaiKiemTra == exam_id)
+            exam = (await db.execute(exam_info_stmt)).scalars().first()
+            if not exam:
+                raise ValueError(f"Không tìm thấy bài thi với ID: {exam_id}")
+
+            # Lấy danh sách tất cả học sinh được gán cho bài thi này
+            # thông qua các lớp học được liên kết
+            students_stmt = (
+                select(
+                    Student.maHocSinh,
+                    Student.hoTen,
+                    Student.maHocSinhTruong
+                )
+                .join(ClassRoom, Student.maLopHoc == ClassRoom.maLopHoc)
+                .join(ExamClassRoom, ClassRoom.maLopHoc == ExamClassRoom.maLopHoc
+            ).where(ExamClassRoom.maBaiKiemTra == exam_id)
+            .where(Student.trangThai == True)
+            .distinct()
+        )
+        
+            all_students = (await db.execute(students_stmt)).mappings().all()
+            student_ids = [s['maHocSinh'] for s in all_students]
+
+            # Lấy tất cả các kết quả và phiếu trả lời liên quan trong một query
+            results_stmt = (
+                select(
+                    Result.maHocSinh,
+                    Result.diem,
+                    Result.soCauDung,
+                    Result.soCauSai,
+                    AnswerSheet.thoiGianTao.label("ngayCham"),
+                    AnswerSheet.urlHinhAnhXuLy
+                )
+                .join(AnswerSheet, Result.maPhieuTraLoi == AnswerSheet.maPhieuTraLoi)
+                .where(Result.maBaiKiemTra == exam_id)
+                .where(Result.maHocSinh.in_(student_ids))
+            )
+            
+            results_data = (await db.execute(results_stmt)).mappings().all()
+            results_map = {res['maHocSinh']: res for res in results_data}
+
+            # Kết hợp dữ liệu
+            full_results = []
+            graded_count = 0
+            total_score = 0
+            
+            for student in all_students:
+                result_info = results_map.get(student['maHocSinh'])
+                
+                if result_info:
+                    graded_count += 1
+                    total_score += result_info['diem']
+                    full_results.append({
+                        "maHocSinh": student['maHocSinh'],
+                        "hoTen": student['hoTen'],
+                        "maHocSinhTruong": student['maHocSinhTruong'],
+                        "diem": float(result_info['diem']),
+                        "soCauDung": result_info['soCauDung'],
+                        "soCauSai": result_info['soCauSai'],
+                        "ngayCham": result_info['ngayCham'].isoformat() if result_info['ngayCham'] else None,
+                        "urlHinhAnhXuLy": result_info['urlHinhAnhXuLy'],
+                        "trangThai": "dacom"
+                    })
+                else:
+                    full_results.append({
+                        "maHocSinh": student['maHocSinh'],
+                        "hoTen": student['hoTen'],
+                        "maHocSinhTruong": student['maHocSinhTruong'],
+                        "diem": None,
+                        "soCauDung": None,
+                        "soCauSai": None,
+                        "ngayCham": None,
+                        "urlHinhAnhXuLy": None,
+                        "trangThai": "chuacham"
+                    })
+            
+            # Sắp xếp theo tên học sinh
+            full_results.sort(key=lambda x: x['hoTen'])
+
+            total_students = len(all_students)
+            average_score = (total_score / graded_count) if graded_count > 0 else 0
+
+            return {
+                "exam": {
+                    "id": exam.maBaiKiemTra,
+                    "tieuDe": exam.tieuDe,
+                    "monHoc": exam.monHoc,
+                    "tongSoCau": exam.tongSoCau,
+                },
+                "stats": {
+                    "totalStudents": total_students,
+                    "graded": graded_count,
+                    "notGraded": total_students - graded_count,
+                    "averageScore": round(float(average_score), 2)
+                },
+                "results": full_results
+            }   
+
+        except Exception as e:
+            logging.error(f"Lỗi khi lấy kết quả bài thi {exam_id}: {str(e)}")
+            # Re-raise để endpoint có thể bắt và trả về lỗi 500
+            raise
+
+    @staticmethod
+    async def process_single_image_ws(
+        db: AsyncSession,
+        exam_id: int,
+        image_data: bytes,
+        scanner_user_id: int
+    ):
+        """
+        Xử lý một ảnh duy nhất từ WebSocket, lưu ảnh và tạo annotation như batch-process-with-exam.
+        """
+        import tempfile
+        import os
+        from pathlib import Path
+        import base64
+        
+        try:
+            # 1. Gửi thông báo bắt đầu
+            await WebSocketService.send_omr_progress_update(
+                user_id=scanner_user_id,
+                status="processing",
+                message="Đã nhận ảnh, đang xử lý OMR..."
+            )
+
+            # 2. Lấy thông tin exam và template
+            exam = await db.get(Exam, exam_id)
+            if not exam or not exam.maMauPhieu:
+                raise ValueError("Bài thi không hợp lệ hoặc thiếu mẫu chấm.")
+
+            # 3. Tạo thư mục lưu trữ vĩnh viễn (giống batch-process-with-exam)
+            from app.core.config import settings
+            storage_root = Path(settings.STORAGE_PATH)
+            exam_storage_dir = storage_root / "ws_scans" / str(exam_id)
+            exam_storage_dir.mkdir(parents=True, exist_ok=True)
+            
+            # Đường dẫn web tương đối
+            relative_storage_path = Path("ws_scans") / str(exam_id)
+
+            # 4. Lưu ảnh gốc vào file tạm thời để xử lý
+            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+                tmp_file.write(image_data)
+                tmp_image_path = tmp_file.name
+
+            try:
+                # 5. Load OMR components (giống batch-process-with-exam)
+                from app.websocket.omr_socket import get_template_path_from_id
+                template_path = await get_template_path_from_id(exam.maMauPhieu, db)
+                
+                from app.omr.main_pipeline import process_single_image, OMRAligner
+                from app.omr.template import load_template, get_all_bubbles
+                from ultralytics import YOLO
+                
+                template = load_template(template_path)
+                yolo_model = YOLO("app/omr/models/best.pt")
+                bubbles = get_all_bubbles(template)
+                
+                # Tạo aligner
+                aligner = None
+                template_dir = os.path.dirname(template_path)
+                ref_images = list(Path(template_dir).glob("*.png")) + list(Path(template_dir).glob("*.jpg"))
+                if ref_images:
+                    aligner = OMRAligner(
+                        ref_img_path=str(ref_images[0]),
+                        method='ORB',
+                        max_features=5000,
+                        good_match_percent=0.2,
+                        debug=False
+                    )
+
+                # 6. Load JSON answer keys (giống batch-process-with-exam)
+                exam_answer_keys = {}
+                try:
+                    from app.routes.omr import load_json_answer_keys_for_exam
+                    exam_answer_keys = await load_json_answer_keys_for_exam(db, exam_id)
+                    logging.info(f"WebSocket: Loaded {len(exam_answer_keys)} JSON answer keys")
+                except Exception as e:
+                    logging.warning(f"WebSocket: Could not load JSON answer keys: {e}")
+
+                # 7. Process image
+                fname, omr_results, aligned_img = process_single_image(
+                    tmp_image_path, template, yolo_model, conf=0.4, 
+                    aligner=aligner, save_files=False
+                )
+
+                if "error" in omr_results:
+                    raise Exception(omr_results["error"])
+
+                # Tạo base64 cho aligned image ngay để có thể hiển thị khi cần
+                annotated_image_base64 = None
+                if aligned_img is not None:
+                    import cv2
+                    _, buffer = cv2.imencode('.jpg', aligned_img)
+                    annotated_image_base64 = base64.b64encode(buffer).decode('utf-8')
+
+                # 8. Extract SBD và mã đề với validation nghiêm ngặt
+                metadata = omr_results.get("_metadata", {})
+                sbd = metadata.get("sbd", "")
+                ma_de = metadata.get("ma_de", "")
+                
+                # Fallback SBD detection
+                if not sbd or sbd == "unknown" or not str(sbd).isdigit():
+                    for key, value in omr_results.items():
+                        if "sbd" in key.lower() and value and str(value).isdigit() and str(value) != "unknown":
+                            sbd = str(value)
+                            break
+                
+                # ❌ DỪNG XỬ LÝ NẾU KHÔNG NHẬN DIỆN ĐƯỢC SBD
+                if not sbd or sbd == "unknown" or not str(sbd).isdigit() or len(str(sbd)) < 4:
+                    # DEBUG: In ra tất cả keys của OMR result để debug
+                    omr_keys_info = []
+                    for key, value in omr_results.items():
+                        if not key.startswith('_'):
+                            omr_keys_info.append(f"{key}: {value}")
+                    
+                    await WebSocketService.send_omr_progress_update(
+                        user_id=scanner_user_id,
+                        status="recognition_failed",
+                        message="❌ Không nhận diện được SBD từ phiếu trả lời",
+                        details={
+                            "recognition_result": "failed",
+                            "detected_sbd": sbd if sbd else "Không phát hiện",
+                            "metadata": metadata,
+                            "all_omr_fields": omr_keys_info[:10],  # Chỉ hiển thị 10 fields đầu
+                            "reason": "SBD không hợp lệ hoặc không rõ ràng",
+                            "suggestion": "Vui lòng chụp lại ảnh rõ nét hơn, đảm bảo vùng SBD không bị che khuất",
+                            "help_text": "Tìm hiểu SBD hợp lệ bằng cách gọi API /api/v1/omr/generate-sbd",
+                            "aligned_image": f"data:image/jpeg;base64,{annotated_image_base64}" if aligned_img is not None else None
+                        }
+                    )
+                    return  # DỪNG XỬ LÝ NGAY TẠI ĐÂY
+                
+                # ✅ SBD hợp lệ, tiếp tục xử lý
+                logging.info(f"WebSocket: ✅ Nhận diện thành công SBD: {sbd}")
+                await WebSocketService.send_omr_progress_update(
+                    user_id=scanner_user_id,
+                    status="recognition_success",
+                    message=f"✅ Nhận diện thành công SBD: {sbd}",
+                    details={
+                        "recognition_result": "success",
+                        "detected_sbd": sbd,
+                        "detected_ma_de": ma_de if ma_de else "Chưa xác định"
+                    }
+                )
+
+                # 9. Lưu ảnh gốc vào storage (giống batch-process-with-exam)
+                safe_filename = f"ws_{sbd}_{scanner_user_id}_original.jpg"
+                original_physical_path = exam_storage_dir / safe_filename
+                relative_original_path = relative_storage_path / safe_filename
+                
+                with open(original_physical_path, 'wb') as f:
+                    f.write(image_data)
+
+                # 10. Tạo annotation nâng cao (giống batch-process-with-exam)
+                relative_annotated_path = None
+                
+                if aligned_img is not None:
+                    try:
+                        from app.omr.detection import draw_scoring_overlay
+                        
+                        # Lấy đáp án cho mã đề
+                        answer_key_for_annotation = exam_answer_keys.get(str(ma_de), {})
+                        
+                        # Đường dẫn vật lý để lưu ảnh annotation
+                        annotated_filename = f"ws_{sbd}_{scanner_user_id}_annotated.jpg"
+                        physical_annotation_path = exam_storage_dir / annotated_filename
+                        relative_annotated_path = relative_storage_path / annotated_filename
+                        
+                        # Vẽ và lưu annotation
+                        draw_scoring_overlay(
+                            image=aligned_img.copy(),
+                            bubbles=bubbles,
+                            student_results=omr_results,
+                            answer_key=answer_key_for_annotation,
+                            out_path=str(physical_annotation_path)
+                        )
+                        
+                        # Đọc lại để encode base64
+                        if os.path.exists(physical_annotation_path):
+                            with open(physical_annotation_path, 'rb') as f:
+                                annotated_image_base64 = base64.b64encode(f.read()).decode('utf-8')
+                        
+                        logging.info(f"WebSocket: Created annotation for SBD {sbd}")
+                        
+                    except Exception as e:
+                        logging.error(f"WebSocket: Annotation creation failed: {e}")
+                        # Sử dụng ảnh đã có base64 từ trước
+
+                # 11. Chấm điểm và lưu vào database
+                score_result = await OMRDatabaseService.score_omr_result(
+                    db=db,
+                    exam_id=exam_id,
+                    student_answers=omr_results,
+                    sbd=sbd,
+                    image_path=str(relative_original_path),  # Lưu đường dẫn tương đối
+                    scanner_user_id=scanner_user_id,
+                    annotated_image_path=str(relative_annotated_path) if relative_annotated_path else None,
+                    save_to_db=True
+                )
+
+                # 12. Gửi kết quả thành công qua WebSocket
+                if score_result.get("success"):
+                    await WebSocketService.send_omr_progress_update(
+                        user_id=scanner_user_id,
+                        status="complete",
+                        message=f"Hoàn tất chấm điểm cho SBD {sbd}. Điểm: {score_result.get('total_score', 0)}",
+                        details={
+                            **score_result,
+                            "aligned_image": f"data:image/jpeg;base64,{annotated_image_base64}" if annotated_image_base64 else None,
+                            "original_image_path": str(relative_original_path),
+                            "annotated_image_path": str(relative_annotated_path) if relative_annotated_path else None
+                        }
+                    )
+                else:
+                    await WebSocketService.send_omr_progress_update(
+                        user_id=scanner_user_id,
+                        status="warning",
+                        message=f"Xử lý OMR thành công nhưng chấm điểm gặp vấn đề cho SBD {sbd}",
+                        details={
+                            "sbd": sbd,
+                            "ma_de": ma_de,
+                            "error": score_result.get('error', 'Lỗi không xác định'),
+                            "aligned_image": f"data:image/jpeg;base64,{annotated_image_base64}" if annotated_image_base64 else None
+                        }
+                    )
+
+            finally:
+                # Cleanup temp file
+                if os.path.exists(tmp_image_path):
+                    os.unlink(tmp_image_path)
+
+        except Exception as e:
+            logging.error(f"Lỗi trong process_single_image_ws: {e}", exc_info=True)
+            await WebSocketService.send_omr_progress_update(
+                user_id=scanner_user_id,
+                status="error",
+                message=f"Lỗi xử lý ảnh: {str(e)}"
+            )
+
+    @staticmethod
+    async def export_results_with_status(db: AsyncSession, exam_id: int) -> bytes:
+        """
+        Xuất kết quả của một bài thi ra file Excel, bao gồm cả học sinh đã chấm và chưa chấm.
+        """
+        try:
+            # Lấy danh sách kết quả chi tiết, bao gồm cả học sinh chưa chấm
+            results_data = await OMRDatabaseService.get_results_by_exam(db, exam_id)
+            
+            # Chuẩn bị dữ liệu cho DataFrame
+            data_to_export = []
+            for student_result in results_data.get("results", []):
+                data_to_export.append({
+                    "Mã học sinh": student_result.get("maHocSinhTruong", ""),
+                    "Họ và tên": student_result.get("hoTen", ""),
+                    "Trạng thái": "Đã chấm" if student_result.get("trangThai") == "dacom" else "Chưa chấm",
+                    "Điểm số": student_result.get("diem", ""),
+                    "Số câu đúng": student_result.get("soCauDung", ""),
+                })
+
+            if not data_to_export:
+                # Handle case with no students assigned to the exam
+                data_to_export.append({
+                    "Mã học sinh": "Không có dữ liệu",
+                    "Họ và tên": "",
+                    "Trạng thái": "",
+                    "Điểm số": "",
+                    "Số câu đúng": ""
+                })
+
+            df = pd.DataFrame(data_to_export)
+
+            # Tạo file Excel trong memory
+            output = io.BytesIO()
+            with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                df.to_excel(writer, sheet_name=f'KetQuaKyThi_{exam_id}', index=False)
+                worksheet = writer.sheets[f'KetQuaKyThi_{exam_id}']
+                # Tự động điều chỉnh độ rộng cột
+                for column_cells in worksheet.columns:
+                    length = max(len(str(cell.value)) for cell in column_cells)
+                    worksheet.column_dimensions[column_cells[0].column_letter].width = length + 2
+            
+            output.seek(0)
+            return output.getvalue()
+
+        except Exception as e:
+            logging.error(f"Lỗi khi xuất file Excel kết quả bài thi {exam_id}: {str(e)}")
+            raise HTTPException(status_code=500, detail=f"Không thể xuất file Excel: {e}")
+
+    @staticmethod
     async def backfill_results(
         db: AsyncSession,
         exam_id: Optional[int],
@@ -1244,8 +1672,8 @@ class OMRDatabaseService:
         
         for sheet in answer_sheets:
             try:
-                if not sheet.cauTraLoiJson or not sheet.sobaodanh:
-                    errors.append({"answer_sheet_id": sheet.maPhieuTraLoi, "error": "Thiếu dữ liệu câu trả lời hoặc SBD."})
+                if not sheet.cauTraLoiJson:
+                    errors.append({"answer_sheet_id": sheet.maPhieuTraLoi, "error": "Thiếu dữ liệu câu trả lời."})
                     continue
 
                 # Gọi lại hàm chấm điểm, nhưng chỉ lưu nếu dry_run=False
@@ -1253,7 +1681,7 @@ class OMRDatabaseService:
                     db=db,
                     exam_id=sheet.maBaiKiemTra,
                     student_answers=sheet.cauTraLoiJson,
-                    sbd=sheet.sobaodanh,
+                    sbd="000000", # Tạm thời placeholder
                     image_path=sheet.urlHinhAnh,
                     scanner_user_id=scanner_user_id,
                     annotated_image_path=sheet.urlHinhAnhXuLy, # Giả sử đây là ảnh đã xử lý

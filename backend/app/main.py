@@ -9,7 +9,7 @@ import uvicorn
 import io
 
 from app.core.config import settings
-from app.routes import auth, users, organizations, classes, students, exams, dashboard, settings as settings_router, answer_templates, websocket, admin, files, password_reset_requests, teacher, omr
+from app.routes import auth, users, organizations, classes, students, exams, dashboard, settings as settings_router, answer_templates, websocket, admin, files, password_reset_requests, teacher, omr, stats, manager
 from app.db.session import Base, engine, AsyncSessionLocal
 from app.services.student_service import StudentService
 from app.websocket import setup_omr_websocket
@@ -42,11 +42,19 @@ app = FastAPI(
 )
 
 # Cấu hình CORS
+origins = [
+    "http://localhost",
+    "http://localhost:3000",
+    "http://localhost:3001",
+    "https://eduscan.id.vn",
+    "https://www.eduscan.id.vn",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow development and test origins
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
@@ -77,6 +85,8 @@ app.include_router(admin.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(password_reset_requests.router, prefix=f"{settings.API_PREFIX}/v1")
 app.include_router(teacher.router, prefix=f"{settings.API_PREFIX}/v1/teacher")
 app.include_router(omr.router, prefix=f"{settings.API_PREFIX}/v1")
+app.include_router(stats.router, prefix=f"{settings.API_PREFIX}/v1")
+app.include_router(manager.router, prefix=f"{settings.API_PREFIX}/v1/manager")
 
 # Root endpoint
 @app.get("/")

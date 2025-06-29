@@ -174,6 +174,29 @@ class WebSocketService:
             for monitor_ws in manager.exam_monitors[exam_id]:
                 await manager.send_personal_message(status_message, monitor_ws)
 
+    @staticmethod
+    async def send_omr_progress_update(
+        user_id: int, 
+        message: str, 
+        status: str, 
+        progress: Optional[int] = None,
+        details: Optional[dict] = None
+    ):
+        """Gửi cập nhật tiến trình OMR cho một user cụ thể"""
+        progress_message = {
+            "type": "omr_progress",
+            "status": status, # e.g., "processing", "matching", "scoring", "complete", "error"
+            "message": message,
+            "progress": progress, # e.g., percentage 0-100
+            "details": details or {}, # e.g., { "sbd": "123456", "student_name": "..." }
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        # Tìm connection của user và gửi message
+        # Đây là phần giả định, cần có logic ánh xạ user_id -> websocket
+        # For now, we broadcast to a generic 'user_{user_id}' room
+        await manager.broadcast_to_room(progress_message, f"user_{user_id}")
+
 
 # Tạo instance global của ConnectionManager
 manager = ConnectionManager()

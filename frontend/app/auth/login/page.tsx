@@ -21,15 +21,6 @@ export default function LoginPage() {
         <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-gray-900">
           Đăng nhập vào EduScan
         </h2>
-        <p className="mt-2 text-center text-sm text-gray-600">
-          Hoặc{" "}
-          <Link
-            href="/auth/register"
-            className="font-medium text-indigo-600 hover:text-indigo-500"
-          >
-            tạo tài khoản mới
-          </Link>
-        </p>
       </div>
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">

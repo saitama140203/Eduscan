@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status
-from typing import List
+from typing import List, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_async_db
@@ -18,10 +18,14 @@ router = APIRouter(
 async def read_users(
     skip: int = 0,
     limit: int = 100,
+    maToChuc: Optional[int] = None,
+    vaiTro: Optional[str] = None,
     current_user: User = Depends(check_manager_permission),
     db: AsyncSession = Depends(get_async_db)
 ):
-    return await UserService.get_all_users_with_org(db, skip=skip, limit=limit)
+    return await UserService.get_all_users_with_org(
+        db, skip=skip, limit=limit, maToChuc=maToChuc, vaiTro=vaiTro
+    )
 
 @router.get("/organization/{org_id}", response_model=List[UserOut])
 async def read_users_by_organization(

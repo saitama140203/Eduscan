@@ -653,10 +653,10 @@ export default function ExamAnswersPage() {
 
   const handleSubmit = async () => {
     const totalScore = Object.values(scores).reduce((sum, score) => sum + score, 0);
-    if (Math.abs(totalScore - (exam?.tongDiem ?? 10)) > 0.01) {
+    if (Math.abs(totalScore - (exam?.tongDiem ?? 10)) > 0.1) {
       toast({
         title: "Lỗi tổng điểm",
-        description: `Tổng điểm các câu (${totalScore.toFixed(2)}) không khớp với tổng điểm của bài thi (${exam?.tongDiem ?? 10}).`,
+        description: `Tổng điểm các câu (${totalScore.toFixed(3)}) không khớp với tổng điểm của bài thi (${exam?.tongDiem ?? 10}).`,
         variant: "destructive",
       });
       return;
@@ -1032,8 +1032,8 @@ export default function ExamAnswersPage() {
                                   <Label htmlFor={`score-group-${key}`} className="w-20 text-right">{group.displayLabel}:</Label>
                                   <div className="flex-1">
                                     <Input 
-                                      id={`score-group-${key}`} type="number" step="0.01" 
-                                      value={Number(group.score).toFixed(2)} 
+                                      id={`score-group-${key}`} type="number" step="0.001" 
+                                      value={Number(group.score).toFixed(3)} 
                                       onChange={(e) => {
                                         const newGroupScore = parseFloat(e.target.value) || 0;
                                         const perQuestionScore = group.questions.length > 0 ? newGroupScore / group.questions.length : 0;
@@ -1052,8 +1052,8 @@ export default function ExamAnswersPage() {
                                 <div key={`score-${question.label}`} className="flex items-center space-x-3">
                                   <Label htmlFor={`score-${question.label}`} className="w-20 text-right">{group.displayLabel}:</Label>
                                   <Input 
-                                    id={`score-${question.label}`} type="number" step="0.01" 
-                                    value={Number(group.score).toFixed(2)} 
+                                    id={`score-${question.label}`} type="number" step="0.001" 
+                                    value={Number(group.score).toFixed(3)} 
                                     onChange={(e) => handleScoreChange(question.label, e.target.value)} 
                                     className="text-center" placeholder="Điểm" 
                                   />
@@ -1076,7 +1076,7 @@ export default function ExamAnswersPage() {
             </Link>
             <div className="text-right">
                 <p className="text-sm text-muted-foreground">
-                    Tổng điểm đã nhập: <span className="font-bold text-primary">{Object.values(scores).reduce((s, c) => s + c, 0).toFixed(2)}</span> / {exam?.tongDiem}
+                    Tổng điểm đã nhập: <span className="font-bold text-primary">{Object.values(scores).reduce((s, c) => s + c, 0).toFixed(3)}</span> / {exam?.tongDiem}
                 </p>
             </div>
         </CardFooter>

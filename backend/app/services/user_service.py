@@ -120,20 +120,30 @@ class UserService:
         db: AsyncSession,
         skip: int = 0,
         limit: int = 100,
+        maToChuc: Optional[int] = None,
+        vaiTro: Optional[str] = None,
         filters: Dict[str, Any] = None
     ) -> List[dict]:
         conditions = [User.maToChuc != None]
-        if filters:
-            if filters.get("email"):
-                conditions.append(User.email.ilike(f"%{filters['email']}%"))
-            if filters.get("hoTen"):
-                conditions.append(User.hoTen.ilike(f"%{filters['hoTen']}%"))
-            if filters.get("vaiTro"):
-                conditions.append(User.vaiTro == filters["vaiTro"])
-            if filters.get("trangThai") is not None:
-                conditions.append(User.trangThai == filters["trangThai"])
-            if filters.get("maToChuc"):
-                conditions.append(User.maToChuc == filters["maToChuc"])
+
+        # Combine explicit params with filters dict
+        query_filters = filters.copy() if filters else {}
+        if maToChuc:
+            query_filters["maToChuc"] = maToChuc
+        if vaiTro:
+            query_filters["vaiTro"] = vaiTro
+
+        if query_filters:
+            if query_filters.get("email"):
+                conditions.append(User.email.ilike(f"%{query_filters['email']}%"))
+            if query_filters.get("hoTen"):
+                conditions.append(User.hoTen.ilike(f"%{query_filters['hoTen']}%"))
+            if query_filters.get("vaiTro"):
+                conditions.append(User.vaiTro == query_filters["vaiTro"])
+            if query_filters.get("trangThai") is not None:
+                conditions.append(User.trangThai == query_filters["trangThai"])
+            if query_filters.get("maToChuc"):
+                conditions.append(User.maToChuc == query_filters["maToChuc"])
         # JOIN với bảng TOCHUC
         query = (
             select(

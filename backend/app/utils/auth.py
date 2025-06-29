@@ -136,3 +136,27 @@ async def check_class_access(
             raise HTTPException(status_code=403, detail="Không có quyền truy cập lớp không phải chủ nhiệm.")
         return db_class
     raise HTTPException(status_code=403, detail="Phân quyền không hợp lệ.")
+
+async def get_user_by_id(db: AsyncSession, user_id: int) -> Optional[User]:
+    """
+    Lấy thông tin người dùng bằng ID.
+    """
+    if not user_id:
+        return None
+    result = await db.execute(select(User).where(User.maNguoiDung == user_id))
+    return result.scalars().first()
+
+async def get_user_from_ws_token(db: AsyncSession, token: str) -> Optional[User]:
+    """
+    Xác thực và lấy thông tin người dùng từ token cho WebSocket.
+    """
+    try:
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        user_id = payload.get("user_id")
+        if not user_id:
+            return None
+    except (JWTError, KeyError):
+        return None
+    
+    user = await get_user_by_id(db, user_id)
+    return user

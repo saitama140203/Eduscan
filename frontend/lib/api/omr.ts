@@ -1,10 +1,6 @@
 import { apiRequest } from './base'
 
-export const omrApi = {
-  /**
-   * Gửi batch ảnh để chấm OMR với backend tích hợp
-   */
-  processBatch: async (params: {
+const processBatch = async (params: {
     examId: number
     templateId: number
     files: File[]
@@ -20,12 +16,9 @@ export const omrApi = {
       method: 'POST',
       body: formData,
     })
-  },
+}
 
-  /**
-   * Xử lý ảnh OMR đơn lẻ
-   */
-  processSingle: async (params: {
+const processSingle = async (params: {
     examId: number
     templateId: number
     file: File
@@ -41,26 +34,21 @@ export const omrApi = {
       method: 'POST',
       body: formData,
     })
-  },
+}
 
-  /**
-   * Lưu một batch kết quả đã chấm vào database
-   */
-  saveResults: async (payload: { exam_id: number; results: any[] }) => {
+const saveResults = async (payload: { exam_id: number; results: any[] }) => {
     return apiRequest(`/omr/save-results`, {
       method: 'POST',
       body: payload,
     });
-  },
+}
 
-  /**
-   * Xuất kết quả Excel
-   */
-  exportExcel: async (examId: number, classId?: number): Promise<Blob> => {
+const exportExcel = async (examId: number, classId?: number): Promise<Blob> => {
     const params = new URLSearchParams()
     if (classId) params.append('class_id', classId.toString())
     
-    const url = `/omr/export-excel/${examId}${params.toString() ? `?${params.toString()}` : ''}`
+    const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000';
+    const url = `${baseURL}/api/v1/omr/export-excel/${examId}${params.toString() ? `?${params.toString()}` : ''}`
     
     const response = await fetch(url, {
       method: 'GET',
@@ -70,16 +58,14 @@ export const omrApi = {
     })
     
     if (!response.ok) {
-      throw new Error(`Export failed: ${response.statusText}`)
+      const errorBody = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(`Export failed: ${errorBody.detail || response.statusText}`)
     }
     
     return response.blob()
-  },
+}
 
-  /**
-   * Lấy thống kê OMR
-   */
-  getStats: async (examId: number, classId?: number) => {
+const getStats = async (examId: number, classId?: number) => {
     const params = new URLSearchParams()
     if (classId) params.append('class_id', classId.toString())
     
@@ -88,63 +74,52 @@ export const omrApi = {
     return apiRequest(url, {
       method: 'GET',
     })
-  },
-
-  /**
-   * Lấy danh sách templates OMR
-   */
-  getTemplates: async () => {
-    return apiRequest('/omr/templates', {
-      method: 'GET',
-    })
-  },
-
-  /**
-   * Lấy danh sách YOLO models
-   */
-  getModels: async () => {
-    return apiRequest('/omr/models', {
-      method: 'GET',
-    })
-  },
-
-  /**
-   * Preview template OMR
-   */
-  previewTemplate: async (templateId: number) => {
-    return apiRequest(`/omr/preview`, {
-      method: 'POST',
-      body: JSON.stringify({ template_id: templateId }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-  },
-
-  /**
-   * Health check OMR service
-   */
-  healthCheck: async () => {
-    return apiRequest('/omr/health', {
-      method: 'GET',
-    })
-  },
-
-  /**
-   * Tạo mapping SBD cho học sinh
-   */
-  generateSBD: async (params: {
-    examId: number
-    classId?: number
-  }) => {
-    return apiRequest('/omr/generate-sbd', {
-      method: 'POST',
-      body: JSON.stringify(params),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    })
-  },
 }
+
+export interface ExamResultDetails {
+  exam: {
+    id: number;
+    tieuDe: string;
+    monHoc: string;
+    tongSoCau: number;
+  };
+  stats: {
+    totalStudents: number;
+    graded: number;
+    notGraded: number;
+    averageScore: number;
+  };
+  results: {
+    maHocSinh: number;
+    hoTen: string;
+    maHocSinhTruong: string;
+    diem: number | null;
+    soCauDung: number | null;
+    soCauSai: number | null;
+    ngayCham: string | null;
+    urlHinhAnhXuLy: string | null;
+    trangThai: 'dacom' | 'chuacham';
+  }[];
+}
+
+async function getResultsByExam(examId: number): Promise<ExamResultDetails> {
+  const response = await apiRequest<{ success: boolean, data: ExamResultDetails }>(`/omr/exams/${examId}/results`, {
+      method: 'GET',
+  });
+  if (response && response.success) {
+    return response.data;
+  }
+  throw new Error("Failed to fetch exam results from API");
+}
+
+
+export const omrApi = {
+    processBatch,
+    processSingle,
+    saveResults,
+    exportExcel,
+    getStats,
+    getResultsByExam,
+};
 
 export default omrApi 

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", os.path.join(BACKEND_ROOT_DIR, "uploads"))
     
     # OMR data directory
-    OMR_DATA_DIR: str = os.getenv("OMR_DATA_DIR", os.path.join(BACKEND_ROOT_DIR, "..", "OMRChecker"))
+    OMR_DATA_DIR: str = os.getenv("OMR_DATA_DIR", os.path.join(BACKEND_ROOT_DIR, "OMRChecker"))
     STORAGE_PATH: str = os.getenv("STORAGE_PATH", os.path.join(OMR_DATA_DIR, "storage"))
     # OMR Service URL - for Docker containers
     OMR_API_URL: str = "http://localhost:8001"
@@ -44,12 +44,13 @@ class Settings(BaseSettings):
 
 settings = Settings()
 
-# Đảm bảo thư mục upload tồn tại khi ứng dụng khởi tạo (nếu chạy không qua Docker build step)
-# Khi chạy với Docker, Dockerfile có thể đảm nhận việc này, hoặc entrypoint.
-# Tuy nhiên, để an toàn, có thể kiểm tra và tạo ở đây.
-# if not os.path.exists(settings.UPLOAD_DIR):
-#     try:
-#         os.makedirs(settings.UPLOAD_DIR)
-#     except OSError as e:
-#         print(f"Error creating UPLOAD_DIR {settings.UPLOAD_DIR}: {e}")
-#         # Có thể raise lỗi ở đây nếu thư mục upload là bắt buộc 
+# Đảm bảo các thư mục cần thiết tồn tại khi ứng dụng khởi tạo
+# Điều này cực kỳ quan trọng để tránh lỗi khi ghi file
+try:
+    os.makedirs(settings.UPLOAD_DIR, exist_ok=True)
+    os.makedirs(settings.STORAGE_PATH, exist_ok=True)
+    print(f"Directory {settings.UPLOAD_DIR} is ready.")
+    print(f"Directory {settings.STORAGE_PATH} is ready.")
+except OSError as e:
+    print(f"Error creating directories: {e}")
+    # Có thể raise lỗi ở đây để dừng ứng dụng nếu các thư mục này là bắt buộc 

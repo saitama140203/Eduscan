@@ -1,57 +1,105 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, HTTPException, status, Query
 from fastapi.security import HTTPBearer
-from typing import Optional
+from typing import Optional, List
 import json
 import asyncio
 from datetime import datetime
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.utils.auth import get_current_user_websocket
+from app.utils.auth import get_current_user_websocket, get_user_from_ws_token
 from app.services.websocket_service import manager, WebSocketService
 from app.models.user import User
+from app.db.session import get_async_db
+from app.services.omr_service import OMRDatabaseService
+import base64
 
 router = APIRouter()
 security = HTTPBearer()
 
-@router.websocket("/ws/{room}")
+@router.websocket("/ws/{client_id}")
 async def websocket_endpoint(
-    websocket: WebSocket, 
-    room: str,
-    token: Optional[str] = None
+    websocket: WebSocket,
+    client_id: str,
+    token: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_async_db)
 ):
-    """WebSocket endpoint chính cho real-time communication"""
+    """
+    WebSocket endpoint chính.
+    - client_id: Một ID duy nhất cho mỗi client (tab trình duyệt).
+    - token: JWT token để xác thực người dùng.
+    """
+    user: Optional[User] = None
+    user_info = {"client_id": client_id, "username": "Guest"}
+    room = "default" # Phòng mặc định
+
+    if token:
+        user = await get_user_from_ws_token(db, token)
+    
+    if user:
+        user_info["user_id"] = user.maNguoiDung
+        user_info["username"] = user.hoTen
+        user_info["role"] = user.vaiTro
+        room = f"user_{user.maNguoiDung}" # Tạo một phòng riêng cho mỗi user
+
+    await manager.connect(websocket, room, user_info)
+    
     try:
-        # Authenticate user
-        if not token:
-            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
-            return
-        
-        # TODO: Implement proper WebSocket authentication
-        # For now, we'll use a simple approach
-        user_info = {
-            "user_id": 1,
-            "username": "test_user",
-            "role": "TEACHER",
-            "connected_at": datetime.now().isoformat()
-        }
-        
-        # Connect to room
-        await manager.connect(websocket, room, user_info)
-        
-        try:
-            while True:
-                # Receive message from client
-                data = await websocket.receive_text()
+        while True:
+            data = await websocket.receive_text()
+            # Xử lý các message từ client nếu cần
+            # Ví dụ: tham gia giám sát một kỳ thi
+            try:
                 message_data = json.loads(data)
+                message_type = message_data.get("type")
+
+                if message_type == "join_exam_monitor" and user:
+                    exam_id = message_data.get("exam_id")
+                    if exam_id:
+                        await manager.join_exam_monitor(websocket, exam_id)
+                        await manager.send_personal_message({
+                            "type": "monitor_joined",
+                            "message": f"Bạn đang giám sát kỳ thi {exam_id}"
+                        }, websocket)
                 
-                # Handle different message types
-                await handle_websocket_message(websocket, room, message_data, user_info)
-                
-        except WebSocketDisconnect:
-            await manager.disconnect(websocket)
+                elif message_type == "capture_frame" and user:
+                    frame_data = message_data.get("frame")
+                    exam_id = message_data.get("exam_id")
+                    
+                    if frame_data and exam_id:
+                        # Tách header base64
+                        try:
+                            header, encoded = frame_data.split(",", 1)
+                            image_data = base64.b64decode(encoded)
+                            
+                            # Chạy xử lý OMR trong một task nền
+                            asyncio.create_task(
+                                OMRDatabaseService.process_single_image_ws(
+                                    db=db,
+                                    exam_id=exam_id,
+                                    image_data=image_data,
+                                    scanner_user_id=user.maNguoiDung
+                                )
+                            )
+                        except Exception as e:
+                            await WebSocketService.send_omr_progress_update(
+                                user_id=user.maNguoiDung,
+                                status="error",
+                                message=f"Lỗi xử lý ảnh: {str(e)}"
+                            )
+
+            except json.JSONDecodeError:
+                await manager.send_personal_message({
+                    "type": "error",
+                    "message": "Invalid JSON format"
+                }, websocket)
             
-    except Exception as e:
-        print(f"WebSocket error: {e}")
-        await websocket.close(code=status.WS_1011_INTERNAL_ERROR)
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        await manager.broadcast_to_room({
+            "type": "user_left",
+            "user": user_info.get("username"),
+            "room": room
+        }, room)
 
 
 @router.websocket("/ws/exam/{exam_id}/monitor")

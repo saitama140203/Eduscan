@@ -26,14 +26,59 @@ interface OMRWebSocketData {
   data?: OMRResult
 }
 
-interface UseOMRWebSocketProps {
-  examId?: number | null
-  templateId?: number | null
-  onResult?: (result: OMRWebSocketData) => void
-  onResultSaved?: (result: any) => void
+// Giao diện dữ liệu chi tiết cho từng trạng thái
+export interface RecognitionSuccessDetails {
+  recognition_result: 'success';
+  detected_sbd: string;
+  detected_ma_de?: string;
 }
 
-export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }: UseOMRWebSocketProps) => {
+export interface RecognitionFailedDetails {
+  recognition_result: 'failed';
+  detected_sbd: string;
+  reason: string;
+  suggestion: string;
+  aligned_image?: string;
+}
+
+export interface MatchingDetails {
+  sbd: string;
+  student_name: string;
+}
+
+export interface CompleteDetails {
+  success: boolean;
+  student_id: number | null;
+  student_name: string | null;
+  student_code: string | null;
+  sbd: string;
+  ma_de: string;
+  total_score: number;
+  correct_answers: number;
+  wrong_answers: number;
+  blank_answers: number;
+  total_questions: number;
+  details: any[]; // Chi tiết từng câu
+  aligned_image?: string;
+  original_image_path?: string;
+  annotated_image_path?: string;
+}
+
+// Giao diện cho tin nhắn WebSocket chung
+export interface OMRProgressData {
+  status: 'processing' | 'recognition_success' | 'recognition_failed' | 'matching' | 'complete' | 'warning' | 'error';
+  message: string;
+  details?: RecognitionSuccessDetails | RecognitionFailedDetails | MatchingDetails | CompleteDetails | { error?: string };
+}
+
+interface UseOMRWebSocketProps {
+  examId?: number;
+  templateId?: number;
+  onProgress: (data: OMRProgressData) => void; // Callback để cập nhật UI
+  onResultSaved: (result: CompleteDetails) => void;
+}
+
+export const useOMRWebSocket = ({ examId, templateId, onProgress, onResultSaved }: UseOMRWebSocketProps) => {
   const socketRef = useRef<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
@@ -41,10 +86,11 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
   const [lastResult, setLastResult] = useState<OMRWebSocketData | null>(null);
   const { user } = useAuth()
   
-  const onResultRef = useRef(onResult);
+  // Sử dụng ref để đảm bảo callback luôn là phiên bản mới nhất
+  const onProgressRef = useRef(onProgress);
   useEffect(() => {
-    onResultRef.current = onResult;
-  }, [onResult]);
+    onProgressRef.current = onProgress;
+  }, [onProgress]);
 
   const onResultSavedRef = useRef(onResultSaved);
   useEffect(() => {
@@ -84,7 +130,7 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
       return;
     }
 
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'https://eduscan.id.vn';
     const socketUrl = new URL(apiUrl).origin;
 
     const newSocket = io(socketUrl, {
@@ -116,6 +162,7 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
         description: "Không thể kết nối tới server", 
         variant: "destructive" 
       });
+      onProgressRef.current({ status: 'error', message: 'Lỗi kết nối WebSocket' });
     });
     
     newSocket.on('connected', (data) => {
@@ -135,7 +182,7 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
       console.log('Frame processed:', result);
       setIsProcessing(false);
       setLastResult(result);
-      onResultRef.current?.(result);
+      onProgressRef.current({ status: 'complete', message: result.message || 'Xử lý thành công' });
       
       if (result.success && result.data) {
         toast({
@@ -147,6 +194,36 @@ export const useOMRWebSocket = ({ examId, templateId, onResult, onResultSaved }:
           title: "Lỗi xử lý",
           description: result.message || "Không thể xử lý phiếu trả lời",
           variant: "destructive",
+        });
+      }
+    });
+
+    newSocket.on('omr_progress', (data: OMRProgressData) => {
+      console.log('OMR Progress:', data);
+      
+      // Chuyển tiếp tất cả các cập nhật trạng thái đến component cha
+      onProgressRef.current(data);
+
+      // Xử lý các trạng thái cuối cùng
+      if (data.status === 'complete' && data.details) {
+        onResultSavedRef.current(data.details as CompleteDetails);
+        toast({
+          title: "Hoàn tất!",
+          description: data.message,
+        });
+      } else if (data.status === 'recognition_failed') {
+        toast({
+          title: "Nhận diện thất bại",
+          description: data.details?.suggestion || data.message,
+          variant: "destructive",
+          duration: 5000,
+        });
+      } else if (data.status === 'error') {
+        toast({
+          title: "Lỗi xử lý",
+          description: (data.details as any)?.error || data.message,
+          variant: "destructive",
+          duration: 5000,
         });
       }
     });

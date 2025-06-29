@@ -5,7 +5,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useCreateClass } from "@/hooks/useClasses";
 import { useOrganizations } from "@/hooks/useOrganizations";
-import { useTeachers } from "@/hooks/useUsers";
+import { useTeachersByOrg } from "@/hooks/use-users";
 import { ClassCreate } from "@/lib/api/classes";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,18 +38,13 @@ export default function AdminCreateClassPage() {
   const router = useRouter();
   const createClassMutation = useCreateClass();
   
-  const { data: organizations = [], isLoading: orgLoading, error: orgError } = useOrganizations();
-  const { data: teachers = [], isLoading: teachersLoading, error: teachersError } = useTeachers(undefined, 0, 100);
-
-  // Debug logging
-  console.log('Organizations:', { organizations, isLoading: orgLoading, error: orgError });
-  console.log('Teachers:', { teachers, isLoading: teachersLoading, error: teachersError });
-
+  const { data: organizations = [], isLoading: orgLoading } = useOrganizations();
+  
   const form = useForm<ClassCreate>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       tenLop: "",
-      maToChuc: 0,
+      maToChuc: undefined,
       capHoc: "",
       namHoc: new Date().getFullYear().toString(),
       maGiaoVienChuNhiem: undefined,
@@ -57,19 +52,14 @@ export default function AdminCreateClassPage() {
     },
   });
 
-  // Watch maToChuc để filter giáo viên theo tổ chức
+  // Watch maToChuc để fetch giáo viên theo tổ chức
   const selectedOrgId = form.watch("maToChuc");
-
-  // Filter giáo viên theo tổ chức đã chọn
-  const filteredTeachers = useMemo(() => {
-    if (!selectedOrgId || selectedOrgId === 0) return [];
-    return (teachers || []).filter((teacher: any) => teacher.maToChuc === selectedOrgId);
-  }, [teachers, selectedOrgId]);
+  const { teachers, loading: teachersLoading } = useTeachersByOrg(selectedOrgId);
 
   // Reset giáo viên khi đổi tổ chức
   useEffect(() => {
-    if (selectedOrgId && selectedOrgId !== 0) {
-      form.setValue("maGiaoVienChuNhiem", undefined);
+    if (selectedOrgId) {
+      form.setValue("maGiaoVienChuNhiem", undefined, { shouldValidate: true });
     }
   }, [selectedOrgId, form]);
 
@@ -163,7 +153,7 @@ export default function AdminCreateClassPage() {
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          {organizations?.filter(org => org?.id).map((org) => (
+                          {organizations?.map((org) => (
                             <SelectItem key={`org-${org.id}`} value={String(org.id)}>
                               {org.name}
                             </SelectItem>
@@ -240,7 +230,7 @@ export default function AdminCreateClassPage() {
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="none">Chưa chọn</SelectItem>
-                          {filteredTeachers.map((teacher: any) => (
+                          {teachers.map((teacher: any) => (
                             <SelectItem key={teacher.maNguoiDung} value={String(teacher.maNguoiDung)}>
                               {teacher.hoTen} ({teacher.email})
                             </SelectItem>
@@ -253,9 +243,14 @@ export default function AdminCreateClassPage() {
                           Chọn tổ chức trước để hiển thị danh sách giáo viên
                         </p>
                       )}
-                      {hasSelectedOrg && filteredTeachers.length === 0 && (
+                      {hasSelectedOrg && !teachersLoading && teachers.length === 0 && (
                         <p className="text-sm text-muted-foreground mt-1">
                           Không có giáo viên nào trong tổ chức này
+                        </p>
+                      )}
+                      {teachersLoading && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Đang tải danh sách giáo viên...
                         </p>
                       )}
                     </FormItem>

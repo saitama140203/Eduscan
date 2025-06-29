@@ -20,10 +20,12 @@ from app.core.config import settings
 from app.db.session import AsyncSessionLocal
 from app.services.omr_service import OMRDatabaseService
 from app.omr.main_pipeline import process_single_image, OMRAligner
-from app.omr.template import load_template
+from app.omr.template import load_template, get_all_bubbles
 from app.models.user import User
 from app.models.answer_sheet_template import AnswerSheetTemplate
 from app.core.security import verify_token
+from ultralytics import YOLO
+from app.services.websocket_service import WebSocketService
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -31,7 +33,15 @@ logger = logging.getLogger(__name__)
 # Create Socket.IO server
 sio = socketio.AsyncServer(
     async_mode='asgi',
-    cors_allowed_origins=["http://localhost:3000", "http://localhost:3001", "http://103.67.199.62:3000", "http://103.67.199.62:3001", "http://103.67.199.62:3002"],
+    cors_allowed_origins=[
+        "http://localhost:3000", 
+        "http://localhost:3001", 
+        "http://103.67.199.62:3000", 
+        "http://103.67.199.62:3001", 
+        "http://103.67.199.62:3002",
+        "https://eduscan.id.vn",
+        "https://www.eduscan.id.vn"
+    ],
     logger=False,
     engineio_logger=False, 
 )
@@ -110,188 +120,152 @@ class OMRWebSocketHandler:
             logger.error(f"Authentication error: {e}", exc_info=True)
             return None
     
-    async def capture_and_process_frame(self, frame_data: str, exam_id: int, template_id: int, sid: str) -> Dict[str, Any]:
-        """Capture frame, align and process with OMR"""
+    async def process_and_score(self, sid: str, exam_id: int, image_data: bytes):
+        """
+        Quy trình xử lý đầy đủ: gọi OMR-Checker, chấm điểm và gửi cập nhật WS.
+        """
+        session_info = active_sessions.get(sid)
+        if not session_info or not session_info.get('user'):
+            logger.error(f"Không tìm thấy session hoặc user cho sid {sid}")
+            return
+
+        user = session_info['user']
+        scanner_user_id = user.maNguoiDung
+
         try:
-            logger.info(f"Processing captured frame for exam {exam_id}, template {template_id}")
+            async with AsyncSessionLocal() as db:
+                # Gọi hàm xử lý ảnh từ OMR service, hàm này đã được tích hợp WS
+                await OMRDatabaseService.process_single_image_ws(
+                    db=db,
+                    exam_id=exam_id,
+                    image_data=image_data,
+                    scanner_user_id=scanner_user_id
+                )
+        except Exception as e:
+            logger.error(f"Lỗi nghiêm trọng trong process_and_score cho sid {sid}: {e}", exc_info=True)
+            try:
+                # Cố gắng gửi thông báo lỗi cuối cùng cho client
+                await WebSocketService.send_omr_progress_update(
+                    user_id=scanner_user_id, status="error", message=f"Lỗi hệ thống: {str(e)}"
+                )
+            except Exception as ws_err:
+                logger.error(f"Không thể gửi thông báo lỗi WebSocket: {ws_err}")
+
+    async def capture_and_process_frame(self, frame_data: str, exam_id: int, template_id: int, sid: str) -> Dict[str, Any]:
+        """Capture frame, align and process with OMR, with full annotation"""
+        try:
+            logger.info(f"Processing WebSocket frame for exam {exam_id}, template {template_id}")
             
-            # Decode base64 image
-            image_data = base64.b64decode(frame_data.split(',')[1] if ',' in frame_data else frame_data)
-            image = Image.open(io.BytesIO(image_data))
-            
-            # Convert to OpenCV format
-            cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
-            
-            # Get template path using proper function like omr.py
             async with AsyncSessionLocal() as db:
                 template_path = await get_template_path_from_id(template_id, db)
-            
-            if not os.path.exists(template_path):
-                logger.error(f"Template file not found: {template_path}")
-                return {
-                    "success": False,
-                    "message": f"Template file not found: template_{template_id}.json"
-                }
-            
-            # Process with OMR pipeline - use same approach as omr.py
-            from ultralytics import YOLO
-            
-            # Load template and model
-            template = load_template(template_path)
-            yolo_model = YOLO("/root/projects/Eduscan/backend/OMRChecker/models/best.pt")
-            
-            # Create aligner like in omr.py
-            aligner = None
-            auto_align = True  # Enable alignment for WebSocket processing
-            if auto_align:
+                
+                # 🎯 LOAD JSON ANSWER KEYS from DB (similar to omr.py)
+                exam_answer_keys = {}
+                try:
+                    from app.routes.omr import load_json_answer_keys_for_exam
+                    exam_answer_keys = await load_json_answer_keys_for_exam(db, exam_id)
+                    logger.info(f"WebSocket: Loaded {len(exam_answer_keys)} answer keys.")
+                except Exception as e:
+                    logger.warning(f"WebSocket: Could not load JSON answer keys: {e}")
+
+                # Decode base64 image and prepare for processing
+                image_data = base64.b64decode(frame_data.split(',')[1] if ',' in frame_data else frame_data)
+                image = Image.open(io.BytesIO(image_data))
+                cv_image = cv2.cvtColor(np.array(image), cv2.COLOR_RGB2BGR)
+
+                # Load OMR components (template, model, aligner)
+                template = load_template(template_path)
+                yolo_model = YOLO("app/omr/models/best.pt")
+                
+                aligner = None
                 template_dir = os.path.dirname(template_path)
                 ref_images = list(Path(template_dir).glob("*.png")) + list(Path(template_dir).glob("*.jpg"))
                 if ref_images:
-                    ref_img_path = str(ref_images[0])
-                    aligner = OMRAligner(
-                        ref_img_path=ref_img_path,
-                        method='ORB',
-                        max_features=5000,
-                        good_match_percent=0.2,
-                        debug=False
-                    )
-                    # logger.info(f"Created aligner with reference: {ref_images[0]}")
-            
-            result = None
-            aligned_image_base64 = None
-            
-            with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
-                cv2.imwrite(tmp_file.name, cv_image)
-                try:
-                    # Use process_single_image like in omr.py instead of process_single_image_with_aligned
-                    fname, omr_results, aligned_image = process_single_image(
-                        tmp_file.name, 
-                        template, 
-                        yolo_model, 
-                        conf=0.25,
-                        aligner=aligner,
-                        answer_key_excel=None,  # Don't use Excel
-                        save_files=False  # Don't save intermediate files
-                    )
+                    aligner = OMRAligner(ref_img_path=str(ref_images[0]))
+
+                # Process in a temporary file
+                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as tmp_file:
+                    cv2.imwrite(tmp_file.name, cv_image)
                     
-                    # Convert aligned image to base64 if available
-                    if aligned_image is not None:
-                        _, buffer = cv2.imencode('.png', aligned_image)
-                        aligned_image_base64 = base64.b64encode(buffer).decode('utf-8')
-                    
-                    # Format result - extract metadata like in omr.py
-                    if "error" not in omr_results:
-                        metadata = omr_results.get("_metadata", {})
-                        sbd = metadata.get("sbd", "")
-                        ma_de = metadata.get("ma_de", "")
-                        
-                        # Fallback SBD detection like in omr.py
+                    try:
+                        fname, omr_results, aligned_img = process_single_image(
+                            tmp_file.name, template, yolo_model, conf=0.4, aligner=aligner, save_files=False
+                        )
+
+                        if "error" in omr_results:
+                            raise Exception(omr_results["error"])
+
+                        # --- Annotation Logic (from omr.py) ---
+                        annotated_image_base64 = None
+                        if aligned_img is not None:
+                            try:
+                                from app.omr.detection import draw_scoring_overlay
+                                bubbles = get_all_bubbles(template)
+                                metadata = omr_results.get("_metadata", {})
+                                ma_de = metadata.get("ma_de", "") 
+
+                                # Get the correct answer key for the detected ma_de
+                                answer_key_for_annotation = {}
+                                if ma_de and str(ma_de) in exam_answer_keys:
+                                    answer_key_for_annotation = exam_answer_keys[str(ma_de)]
+                                
+                                # Create a temporary path for the annotated image
+                                with tempfile.NamedTemporaryFile(suffix='.jpg', delete=False) as anno_tmp:
+                                    draw_scoring_overlay(
+                                        aligned_img.copy(), bubbles, omr_results, 
+                                        answer_key_for_annotation, anno_tmp.name
+                                    )
+                                    # Read back and encode
+                                    with open(anno_tmp.name, 'rb') as f_anno:
+                                        annotated_image_base64 = base64.b64encode(f_anno.read()).decode('utf-8')
+                                    os.unlink(anno_tmp.name) # Clean up temp annotated image
+                                logger.info("WebSocket: Successfully created annotated image.")
+
+                            except Exception as e:
+                                logger.error(f"WebSocket: Annotation drawing failed: {e}")
+                                # Fallback to aligned image if annotation fails
+                                _, buffer = cv2.imencode('.png', aligned_img)
+                                annotated_image_base64 = base64.b64encode(buffer).decode('utf-8')
+
+                        # --- Scoring Logic ---
+                        sbd = omr_results.get("_metadata", {}).get("sbd", "")
                         if not sbd:
-                            sbd_keys = ["sbd", "so_bao_danh", "student_id", "id"]
-                            for key in sbd_keys:
-                                if key in omr_results and omr_results[key]:
-                                    sbd = str(omr_results[key])
-                                    break
-                            
-                            # Try to find in key patterns
-                            if not sbd:
-                                for key, value in omr_results.items():
-                                    if "sbd" in key.lower() or "id" in key.lower():
-                                        if value and str(value).isdigit():
-                                            sbd = str(value)
-                                            break
+                            raise Exception("Không thể nhận diện SBD từ phiếu trả lời.")
                         
-                        # Fallback mã đề detection
-                        if not ma_de:
-                            for key, value in omr_results.items():
-                                if "mdt" in key.lower() or "made" in key.lower():
-                                    if value and str(value).isdigit():
-                                        ma_de = str(value)
-                                        break
-                        
-                        # Filter out metadata for clean answers
-                        answers = {k: v for k, v in omr_results.items() if not k.startswith('_')}
-                        
-                        result = {
-                            'answers': answers,
-                            'sbd': sbd,
-                            'exam_code': ma_de,
-                            'aligned_image': aligned_image_base64
-                        }
-                        logger.info(f"OMR processing successful: SBD={result.get('sbd')}, answers={len(result.get('answers', {}))}")
-                    else:
-                        logger.error(f"OMR processing error: {omr_results}")
-                        
-                finally:
-                    # Clean up temp file
-                    os.unlink(tmp_file.name)
-            
-            if not result:
-                return {
-                    "success": False,
-                    "message": "Không thể nhận dạng phiếu trả lời"
-                }
-            
-            # Extract required data for scoring
-            sbd = result.get('sbd', '')
-            student_answers = result.get('answers', {})
-            ma_de = result.get('exam_code', '')
-            
-            if not sbd:
-                return {
-                    "success": False,
-                    "message": "Không thể nhận diện số báo danh từ phiếu trả lời"
-                }
-            
-            # Score using OMRDatabaseService with correct signature
-            async with AsyncSessionLocal() as db:
-                score_result = await OMRDatabaseService.score_omr_result(
-                    db=db,
-                    exam_id=exam_id,
-                    student_answers=student_answers,
-                    sbd=sbd,
-                    image_path=tmp_file.name if 'tmp_file' in locals() else None,
-                    scanner_user_id=None,  # WebSocket doesn't track scanner
-                    save_to_db=False  # Don't save automatically on capture
-                )
-                
-                logger.info(f"Scoring complete: {score_result}")
-                
-                if score_result.get("success"):
-                    return {
-                        "success": True,
-                        "data": {
-                            "sbd": sbd,
-                            "exam_code": ma_de,
-                            "answers": student_answers,
-                            "score": score_result.get('total_score'),
-                            "total_correct": score_result.get('correct_answers'),
-                            "total_questions": score_result.get('total_questions'),
-                            "student_name": score_result.get('student_name'),
-                            "aligned_image": f"data:image/png;base64,{aligned_image_base64}" if aligned_image_base64 else None,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    }
-                else:
-                    return {
-                        "success": True,
-                        "data": {
-                            "sbd": sbd,
-                            "exam_code": ma_de,
-                            "answers": student_answers,
-                            "score": None,
-                            "message": score_result.get('error', 'Lỗi chấm điểm'),
-                            "aligned_image": f"data:image/png;base64,{aligned_image_base64}" if aligned_image_base64 else None,
-                            "timestamp": datetime.now().isoformat()
-                        }
-                    }
-                
+                        score_result = await OMRDatabaseService.score_omr_result(
+                            db=db, exam_id=exam_id, student_answers=omr_results, sbd=sbd, save_to_db=False
+                        )
+
+                        if score_result.get("success"):
+                            return {
+                                "success": True,
+                                "data": {
+                                    **score_result, # Unpack all scoring results
+                                    "aligned_image": f"data:image/jpeg;base64,{annotated_image_base64}" if annotated_image_base64 else None,
+                                    "timestamp": datetime.now().isoformat()
+                                }
+                            }
+                        else:
+                            # Scoring failed (e.g., student not found)
+                             return {
+                                "success": True, # The process succeeded, but scoring failed
+                                "data": {
+                                    "sbd": sbd,
+                                    "exam_code": omr_results.get("_metadata", {}).get("ma_de", ""),
+                                    "answers": {k: v for k, v in omr_results.items() if not k.startswith('_')},
+                                    "score": None,
+                                    "message": score_result.get('error', 'Lỗi chấm điểm'),
+                                    "aligned_image": f"data:image/jpeg;base64,{annotated_image_base64}" if annotated_image_base64 else None,
+                                    "timestamp": datetime.now().isoformat()
+                                }
+                            }
+
+                    finally:
+                        os.unlink(tmp_file.name)
+
         except Exception as e:
             logger.error(f"Error processing captured frame: {e}", exc_info=True)
-            return {
-                "success": False,
-                "message": f"Lỗi xử lý: {str(e)}"
-            }
+            return {"success": False, "message": f"Lỗi xử lý: {str(e)}"}
     
     async def save_result(self, result_data: Dict[str, Any], exam_id: int) -> Dict[str, Any]:
         """Save the captured result to database"""
@@ -400,61 +374,6 @@ async def start_scanning(sid, data):
         await sio.emit('error', {'message': str(e)}, to=sid)
 
 @sio.event
-async def capture_frame(sid, data):
-    """Capture frame and process with OMR when user clicks capture button"""
-    try:
-        if sid not in active_sessions or not active_sessions[sid].get('scanning'):
-            await sio.emit('error', {'message': 'Session không hoạt động'}, to=sid)
-            return
-        
-        frame_data = data.get('frame')
-        exam_id = active_sessions[sid].get('exam_id')
-        template_id = active_sessions[sid].get('template_id')
-        
-        if not frame_data or not exam_id or not template_id:
-            await sio.emit('error', {'message': 'Dữ liệu không đầy đủ'}, to=sid)
-            return
-        
-        # logger.info(f"Capturing and processing frame for sid {sid}")
-        
-        # Process frame with alignment and OMR
-        result = await omr_handler.capture_and_process_frame(frame_data, exam_id, template_id, sid)
-        
-        # Emit result back to client
-        await sio.emit('frame_processed', result, to=sid)
-        
-    except Exception as e:
-        logger.error(f"Error capturing frame: {e}")
-        await sio.emit('error', {'message': str(e)}, to=sid)
-
-@sio.event
-async def save_result(sid, data):
-    """Save the processed result to database"""
-    try:
-        if sid not in active_sessions:
-            await sio.emit('error', {'message': 'Session không hợp lệ'}, to=sid)
-            return
-        
-        exam_id = active_sessions[sid].get('exam_id')
-        result_data = data.get('result')
-        
-        if not exam_id or not result_data:
-            await sio.emit('error', {'message': 'Dữ liệu không hợp lệ'}, to=sid)
-            return
-        
-        # logger.info(f"Saving result for sid {sid}")
-        
-        # Save result to database
-        save_result = await omr_handler.save_result(result_data, exam_id)
-        
-        # Emit save result
-        await sio.emit('result_saved', save_result, to=sid)
-        
-    except Exception as e:
-        logger.error(f"Error saving result: {e}")
-        await sio.emit('error', {'message': str(e)}, to=sid)
-
-@sio.event
 async def end_session(sid):
     """End scanning session and disconnect"""
     try:
@@ -472,6 +391,29 @@ async def end_session(sid):
     except Exception as e:
         logger.error(f"Error ending session: {e}")
         await sio.emit('error', {'message': str(e)}, to=sid)
+
+@sio.on('capture_frame')
+async def on_capture_frame(sid, data):
+    """Handler for the 'capture_frame' event from the client."""
+    try:
+        if sid not in active_sessions or not active_sessions[sid].get('scanning'):
+            return await sio.emit('error', {'message': 'Session không hoạt động hoặc chưa bắt đầu.'}, to=sid)
+        
+        frame_data = data.get('frame')
+        exam_id = active_sessions[sid].get('exam_id')
+        
+        if not frame_data or not exam_id:
+            return await sio.emit('error', {'message': 'Dữ liệu ảnh hoặc ID bài thi bị thiếu.'}, to=sid)
+            
+        # Decode image data
+        image_bytes = base64.b64decode(frame_data.split(',')[1])
+
+        # Chạy xử lý trong một task nền để không block server
+        asyncio.create_task(omr_handler.process_and_score(sid, exam_id, image_bytes))
+
+    except Exception as e:
+        logger.error(f"Lỗi khi xử lý sự kiện capture_frame cho sid {sid}: {e}", exc_info=True)
+        await sio.emit('error', {'message': f'Lỗi server: {str(e)}'}, to=sid)
 
 def setup_omr_websocket(app):
     """Setup WebSocket with FastAPI app"""

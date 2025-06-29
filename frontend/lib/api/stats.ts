@@ -26,8 +26,15 @@ export interface TeacherStats {
 }
 
 export const statsApi = {
+  getManagerOverview: async () => {
+    return await apiRequest('/stats/overview')
+  },
+  getRecentActivities: async () => {
+    return await apiRequest('/stats/recent-activities')
+  },
   getOverview: async () => {
-    return apiRequest('/stats/overview')
+    // This can be an alias or a more general stats endpoint
+    return await apiRequest('/stats/overview')
   },
 }
 

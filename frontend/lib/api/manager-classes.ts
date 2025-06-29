@@ -122,7 +122,7 @@ export const managerClassesApi = {
   // Export classes data
   exportClasses: async (format: 'csv' | 'excel' | 'json' = 'csv'): Promise<Blob> => {
     const endpoint = format === 'excel' ? '/classes/export/excel' : '/classes/export/csv';
-    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api'}${endpoint}`, {
+    const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'https://eduscan.id.vn/api'}${endpoint}`, {
       credentials: 'include',
     });
     

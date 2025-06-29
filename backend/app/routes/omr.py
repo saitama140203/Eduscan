@@ -123,7 +123,7 @@ async def process_omr_with_exam(
                 tmpf.name,
                 load_template(template_path),
                 YOLO(yolo_model),
-                conf=0.25,
+                conf=0.4,
                 aligner=aligner,
                 answer_key_excel=None,  # Không dùng Excel
                 save_files=False  # Không lưu file trung gian cho single image API
@@ -215,7 +215,7 @@ async def batch_process_omr_with_exam(
     template_id: int = Form(...),
     images: List[UploadFile] = File(...),
     yolo_model: str = Form(default="app/omr/models/best.pt"),
-    confidence: float = Form(default=0.25),
+    confidence: float = Form(default=0.4),
     auto_align: bool = Form(default=True),
     create_annotations: bool = Form(default=True),
     max_annotation_images: int = Form(default=10),
@@ -232,29 +232,35 @@ async def batch_process_omr_with_exam(
         if len(images) > 50:
             raise HTTPException(status_code=400, detail="Không thể xử lý quá 50 ảnh cùng lúc")
         
-        # 1. Tạo thư mục lưu trữ vĩnh viễn cho các ảnh đã annotate
-        annotated_storage_dir = Path(settings.STORAGE_PATH) / "annotated_scans" / str(exam_id)
-        annotated_storage_dir.mkdir(parents=True, exist_ok=True)
+        # 1. Tạo thư mục lưu trữ vĩnh viễn cho các ảnh gốc và ảnh đã xử lý
+        # Đường dẫn vật lý trên server
+        storage_root = Path(settings.STORAGE_PATH)
+        exam_storage_dir = storage_root / "annotated_scans" / str(exam_id)
+        exam_storage_dir.mkdir(parents=True, exist_ok=True)
         
-        # Tạo thư mục tạm
-        temp_dir = tempfile.mkdtemp()
-        image_paths = []
+        # Đường dẫn web tương đối
+        relative_storage_path = Path("annotated_scans") / str(exam_id)
+
+        image_paths_to_process = []
         
-        # Lưu images vào thư mục tạm
+        # Lưu ảnh gốc vào thư mục lưu trữ
         for i, image in enumerate(images):
             if not image.filename.lower().endswith(('.png', '.jpg', '.jpeg')):
                 continue
                 
-            temp_path = os.path.join(temp_dir, f"image_{i}_{image.filename}")
-            with open(temp_path, 'wb') as f:
+            # Tạo tên file an toàn
+            safe_filename = f"original_{i}_{Path(image.filename).name}"
+            physical_path = exam_storage_dir / safe_filename
+            
+            with open(physical_path, 'wb') as f:
                 content = await image.read()
                 f.write(content)
-            image_paths.append(temp_path)
+            image_paths_to_process.append(physical_path)
         
-        if not image_paths:
+        if not image_paths_to_process:
             raise HTTPException(status_code=400, detail="Không có ảnh hợp lệ để xử lý")
         
-        logging.info(f"Processing {len(image_paths)} images with JSON answer key comparison")
+        logging.info(f"Processing {len(image_paths_to_process)} images with JSON answer key comparison")
         
         # Load components
         template = load_template(template_path)
@@ -276,7 +282,7 @@ async def batch_process_omr_with_exam(
                 )
                 logging.info(f"Created aligner with reference: {ref_images[0]}")
         
-        should_create_annotations = create_annotations and len(image_paths) <= max_annotation_images
+        should_create_annotations = create_annotations and len(image_paths_to_process) <= max_annotation_images
         
         # Import draw function
         try:
@@ -304,9 +310,9 @@ async def batch_process_omr_with_exam(
         omr_results = {}
         annotated_images = {}
         
-        for i, img_path in enumerate(image_paths):
+        for i, img_path in enumerate(image_paths_to_process):
             try:
-                logging.info(f"Processing {i+1}/{len(image_paths)}: {os.path.basename(img_path)}")
+                logging.info(f"Processing {i+1}/{len(image_paths_to_process)}: {os.path.basename(img_path)}")
                 
                 # Process để lấy kết quả và ảnh đã căn chỉnh
                 fname, results, aligned_img = process_single_image(
@@ -340,47 +346,46 @@ async def batch_process_omr_with_exam(
                     
                     # Chuẩn bị cho database scoring
                     if sbd:
-                        # Tạo đường dẫn lưu trữ vĩnh viễn cho ảnh annotation
-                        permanent_annotation_path = annotated_storage_dir / f"{sbd}_{fname}_annotated.jpg"
+                        # Đường dẫn tương đối của ảnh annotation để lưu vào DB
+                        relative_annotated_path = relative_storage_path / f"{sbd}_{fname}_annotated.jpg"
                         
                         # Thêm đường dẫn này vào dict để truyền đi
                         batch_item = {
                             "student_answers": results,
                             "sbd": sbd,
-                            "image_path": img_path, # Đường dẫn ảnh gốc
+                            "image_path": str(img_path), # Đường dẫn ảnh gốc vật lý
                             "filename": fname,
-                            "annotated_image_path": str(permanent_annotation_path) # Đường dẫn ảnh sau xử lý
+                            # Đường dẫn URL tương đối cho DB và response
+                            "annotated_image_path": str(relative_annotated_path) 
                         }
                         batch_results.append(batch_item)
                     
-                    # 🎨 FINAL ANNOTATION: Luôn sử dụng ảnh đã căn chỉnh (hoặc ảnh gốc nếu align lỗi)
+                    # 🎨 FINAL ANNOTATION
                     if should_create_annotations and draw_function_available and aligned_img is not None:
                         try:
                             logging.info(f"Creating FINAL annotation for {fname} with mã đề {ma_de}")
                             
-                            # 🔑 LẤY JSON ANSWER KEY cho mã đề này
-                            answer_key_for_annotation = {}
-                            if ma_de and str(ma_de) in exam_answer_keys:
-                                answer_key_for_annotation = exam_answer_keys[str(ma_de)]
-                                logging.info(f"Using JSON answer key for mã đề {ma_de}: {len(answer_key_for_annotation)} questions")
-                                
-                                # Log một vài câu để debug
-                                sample_questions = list(answer_key_for_annotation.items())[:5]
-                                logging.info(f"Sample answer key: {sample_questions}")
-                            else:
-                                logging.warning(f"No JSON answer key found for mã đề {ma_de}, annotation will show selected only")
+                            # Lấy đáp án
+                            answer_key_for_annotation = exam_answer_keys.get(str(ma_de), {})
                             
+                            # Đường dẫn vật lý để lưu ảnh annotation
+                            physical_annotation_path = exam_storage_dir / f"{sbd}_{fname}_annotated.jpg"
+                            
+                            # Đảm bảo thư mục tồn tại TRƯỚC KHI gọi hàm vẽ
+                            os.makedirs(os.path.dirname(physical_annotation_path), exist_ok=True)
+
+                            # Vẽ và lưu file, đảm bảo các tham số được truyền đúng qua keyword
                             draw_scoring_overlay(
-                                aligned_img,
-                                bubbles,
-                                results,
-                                answer_key_for_annotation,
-                                str(permanent_annotation_path) # Sử dụng đường dẫn đã tạo
+                                image=aligned_img,
+                                bubbles=bubbles,
+                                student_results=results,
+                                answer_key=answer_key_for_annotation,
+                                out_path=str(physical_annotation_path)
                             )
                             
                             # Đọc lại file đã annotate để encode (vẫn giữ để trả về cho UI)
-                            if os.path.exists(permanent_annotation_path):
-                                with open(permanent_annotation_path, 'rb') as f:
+                            if os.path.exists(physical_annotation_path):
+                                with open(physical_annotation_path, 'rb') as f:
                                     annotated_images[fname] = base64.b64encode(f.read()).decode()
                             
                         except Exception as e:
@@ -410,7 +415,7 @@ async def batch_process_omr_with_exam(
         
         # Summary
         summary = {
-            "total_images": len(image_paths),
+            "total_images": len(image_paths_to_process),
             "successful": len([r for r in omr_results.values() if "error" not in r]),
             "failed": len([r for r in omr_results.values() if "error" in r]),
             "annotated_images_created": len(annotated_images),
@@ -431,8 +436,8 @@ async def batch_process_omr_with_exam(
             "summary": summary,
             "omr_results": omr_results,
             "scoring_result": scoring_result,
-            "annotated_images": annotated_images,  # 🎯 Final annotations với đúng/sai từ JSON
-            "temp_directory": temp_dir,  # For debugging
+            "annotated_images": annotated_images,
+            "storage_path": str(exam_storage_dir), # For debugging
             "json_answer_keys_available": list(exam_answer_keys.keys())
         })
         
@@ -701,10 +706,7 @@ async def generate_sbd_for_students(
     Tạo số báo danh cho tất cả học sinh trong bài kiểm tra
     """
     try:
-        # Kiểm tra quyền truy cập
-        if current_user.vaiTro not in ["ADMIN", "MANAGER", "TEACHER"]:
-            raise HTTPException(status_code=403, detail="Không có quyền sử dụng chức năng này")
-        
+
         # Lấy danh sách học sinh trong bài kiểm tra
         from app.models.exam import ExamClassRoom
         from sqlalchemy import select
@@ -731,6 +733,7 @@ async def generate_sbd_for_students(
                 "class_name": student.lopHoc.tenLop if hasattr(student, 'lopHoc') else "",
                 "sbd": sbd
             })
+            
         
         return JSONResponse({
             "success": True,
@@ -979,7 +982,8 @@ async def save_omr_results(
     errors = []
     for result_item in request.results:
         try:
-            await OMRDatabaseService.score_omr_result(
+            # Gọi hàm service và nhận kết quả trả về
+            scoring_response = await OMRDatabaseService.score_omr_result(
                 db=db,
                 exam_id=request.exam_id,
                 student_answers=result_item.student_answers,
@@ -988,18 +992,37 @@ async def save_omr_results(
                 annotated_image_path=result_item.annotated_image_path,
                 save_to_db=True
             )
-            saved_count += 1
-        except Exception as e:
-            errors.append({"filename": result_item.filename, "error": str(e)})
+            
+            # Kiểm tra kết quả trả về từ service
+            if scoring_response.get("success"):
+                saved_count += 1
+            else:
+                errors.append({"filename": result_item.filename, "sbd": result_item.sbd, "error": scoring_response.get("error", "Lỗi không xác định từ service")})
 
-    if saved_count > 0:
+        except Exception as e:
+            # Bắt các lỗi không mong muốn từ chính hàm service
+            logging.error(f"Unhandled exception in save_omr_results for SBD {result_item.sbd}: {e}")
+            errors.append({"filename": result_item.filename, "sbd": result_item.sbd, "error": str(e)})
+
+    # Trả về response chi tiết hơn
+    if not errors and saved_count > 0:
         return JSONResponse({
             "success": True, 
-            "message": f"Đã lưu thành công {saved_count}/{len(request.results)} kết quả.",
-            "errors": errors
+            "message": f"Đã lưu thành công tất cả {saved_count} kết quả.",
+            "errors": []
         })
+    elif saved_count > 0:
+        return JSONResponse({
+            "success": False, # Coi là False nếu có lỗi để frontend biết
+            "message": f"Đã lưu thành công {saved_count}/{len(request.results)} kết quả. Vui lòng kiểm tra các lỗi sau.",
+            "errors": errors
+        }, status_code=207) # Multi-Status
     else:
-        raise HTTPException(status_code=400, detail={"message": "Không có kết quả nào được lưu.", "errors": errors})
+        # Chỉ raise Exception khi không lưu được BẤT KỲ kết quả nào
+        raise HTTPException(
+            status_code=400, 
+            detail={"message": "Không có kết quả nào được lưu thành công. Vui lòng kiểm tra lỗi.", "errors": errors}
+        )
 
 class BackfillRequest(BaseModel):
     exam_id: Optional[int] = None
@@ -1038,3 +1061,30 @@ async def backfill_omr_results(
         "processed_count": updated_count,
         "errors": errors
     }
+
+@router.get("/exams/{exam_id}/results")
+async def get_exam_results_list(
+    exam_id: int,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_async_db)
+):
+    """
+    Lấy danh sách kết quả chi tiết của tất cả học sinh cho một bài thi.
+    Bao gồm cả những học sinh chưa được chấm.
+    """
+    try:
+        if current_user.vaiTro not in ["ADMIN", "MANAGER", "TEACHER"]:
+            raise HTTPException(status_code=403, detail="Không có quyền truy cập.")
+        
+        results_data = await OMRDatabaseService.get_results_by_exam(db, exam_id)
+        
+        return JSONResponse(content={
+            "success": True,
+            "data": results_data
+        })
+
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        logging.error(f"API Error fetching results for exam {exam_id}: {str(e)}")
+        raise HTTPException(status_code=500, detail="Lỗi hệ thống khi lấy kết quả bài thi.")

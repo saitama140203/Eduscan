@@ -54,24 +54,7 @@ interface QuickStats {
   icon: any
 }
 
-const getDashboardStats = async (): Promise<ManagerStats> => {
-  try {
-    const response = await apiRequest('/stats/overview')
-    return response
-  } catch (error) {
-    console.error('Failed to fetch dashboard stats:', error)
-    // Fallback to mock data only if API fails
-    return {
-      classes: 8,
-      teachers: 12,
-      exams: 17,
-      students: 188,
-      averageScore: 8.2
-    }
-  }
-}
-
-// getRecentActivities API bị xóa để tránh lỗi 404 - sử dụng mock data
+// API functions moved to lib/api/stats.ts
 
 export default function ManagerDashboardPage() {
   const [stats, setStats] = useState<ManagerStats | null>(null)
@@ -84,38 +67,17 @@ export default function ManagerDashboardPage() {
   const fetchDashboardData = async (showToast = false) => {
     try {
       if (showToast) setRefreshing(true)
-      
-      // Chỉ lấy stats, không gọi recent activities để tránh lỗi 404
-      const dashboardStats = await getDashboardStats()
+      else if (!stats) setLoading(true)
+
+      setActivitiesLoading(true)
+
+      const [dashboardStats, activities] = await Promise.all([
+        statsApi.getManagerOverview(),
+        statsApi.getRecentActivities(),
+      ])
       
       setStats(dashboardStats)
-      
-      // Set mock data cho recent activities
-      setRecentActivities([
-        {
-          id: 1,
-          type: 'exam',
-          title: 'Kiểm tra Toán học - 10A1',
-          description: 'Đã hoàn thành với 35/35 học sinh tham gia',
-          timestamp: '2 giờ trước',
-          status: 'success'
-        },
-        {
-          id: 2,
-          type: 'teacher',
-          title: 'Nguyễn Thị Lan',
-          description: 'Đã tạo đề thi mới cho môn Toán',
-          timestamp: '4 giờ trước'
-        },
-        {
-          id: 3,
-          type: 'class',
-          title: 'Lớp 11A2',
-          description: 'Tạo lớp học mới với 32 học sinh',
-          timestamp: '6 giờ trước',
-          status: 'success'
-        }
-      ])
+      setRecentActivities(activities || [])
       
       if (showToast) {
         toast({
@@ -130,34 +92,6 @@ export default function ManagerDashboardPage() {
         description: "Không thể tải dữ liệu dashboard",
         variant: "destructive",
       })
-      
-      // Fallback to mock data if API fails
-      setStats({
-        classes: 8,
-        teachers: 8,
-        exams: 17,
-        students: 188,
-        averageScore: 8.2
-      })
-      
-      // Mock activities fallback
-      setRecentActivities([
-        {
-          id: 1,
-          type: 'exam',
-          title: 'Kiểm tra Toán học - 10A1',
-          description: 'Đã hoàn thành với 35/35 học sinh tham gia',
-          timestamp: '2 giờ trước',
-          status: 'success'
-        },
-        {
-          id: 2,
-          type: 'teacher',
-          title: 'Nguyễn Thị Lan',
-          description: 'Đã tạo đề thi mới cho môn Toán',
-          timestamp: '4 giờ trước'
-        }
-      ])
     } finally {
       setLoading(false)
       setActivitiesLoading(false)
@@ -169,33 +103,25 @@ export default function ManagerDashboardPage() {
     fetchDashboardData()
   }, [])
 
-  const quickStats: QuickStats[] = stats ? [
+  const mainStats = stats ? [
     {
       label: 'Tổng giáo viên',
       value: stats.teachers.toString(),
-      change: 8.2,
-      trend: 'up',
       icon: Users
     },
     {
       label: 'Tổng học sinh',
       value: stats.students.toString(),
-      change: 12.5,
-      trend: 'up',
       icon: BookOpen
     },
     {
       label: 'Điểm trung bình',
-      value: stats.averageScore ? stats.averageScore.toFixed(1) : '0',
-      change: 3.1,
-      trend: 'up',
+      value: stats.averageScore ? stats.averageScore.toFixed(1) : 'N/A',
       icon: BarChart3
     },
     {
       label: 'Tổng lớp học',
       value: stats.classes.toString(),
-      change: 5.2,
-      trend: 'up',
       icon: Target
     }
   ] : []
@@ -320,7 +246,7 @@ export default function ManagerDashboardPage() {
 
       {/* Quick Stats */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
-        {quickStats?.map((stat, index) => {
+        {mainStats?.map((stat, index) => {
           const Icon = stat.icon
           return (
             <Card key={index}>
@@ -330,13 +256,9 @@ export default function ManagerDashboardPage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{stat.value}</div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                  {getTrendIcon(stat.trend)}
-                  <span className={stat.trend === 'up' ? 'text-green-600' : stat.trend === 'down' ? 'text-red-600' : 'text-blue-600'}>
-                    {stat.change > 0 ? '+' : ''}{stat.change}%
-                  </span>
-                  <span>so với tháng trước</span>
-                </div>
+                <p className="text-xs text-muted-foreground">
+                  Dữ liệu được cập nhật tự động
+                </p>
               </CardContent>
             </Card>
           )
